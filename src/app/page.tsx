@@ -1,6 +1,6 @@
 "use client";
 
-import {useState} from 'react';
+import {useState, useCallback} from 'react';
 import {generateGifFromPdf, GifConfig} from '@/services/gif-generator';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
@@ -12,7 +12,7 @@ import {useToast} from "@/hooks/use-toast";
 import {Icons} from "@/components/icons";
 import {SelectItem, SelectTrigger, SelectValue, SelectContent, SelectGroup, Select, SelectLabel} from "@/components/ui/select";
 
-export default function Home() {
+function GifGenerator() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [gifUrl, setGifUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -105,7 +105,6 @@ export default function Home() {
     setResolution(value);
     setGifConfig({...gifConfig, resolution: value});
   }
-
 
   return (
     <div className="flex flex-col items-center justify-start min-h-screen bg-background p-8">
@@ -206,4 +205,8 @@ export default function Home() {
       </div>
     </div>
   );
+}
+
+export default function Home() {
+  return <GifGenerator />;
 }

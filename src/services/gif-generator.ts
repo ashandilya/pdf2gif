@@ -43,7 +43,7 @@ export async function generateGifFromPdf(pdfFile: File, config: GifConfig): Prom
     const height = parseInt(config.resolution.split('x')[1]);
     const frameDelay = Math.round(100 / config.frameRate);
 
-    const encoder = GIFEncoder();
+    const encoder = new GIFEncoder(); // changed from GIFEncoder()
     encoder.setFrameRate(config.frameRate);
     encoder.setRepeat(config.looping ? 0 : -1);
     encoder.setSize(width, height);
@@ -53,32 +53,25 @@ export async function generateGifFromPdf(pdfFile: File, config: GifConfig): Prom
       const page = pdfDoc.getPages()[i];
       const pngBytes = await page.toPngBytes();
 
-      const blob = new Blob([pngBytes]);
-      const url = URL.createObjectURL(blob);
-
+      // Create an Image object from the PNG bytes.
       const img = new Image();
-      img.src = url;
-      await new Promise<void>((resolve, reject) => {
+      img.src = `data:image/png;base64,${btoa(String.fromCharCode(...pngBytes))}`;
+
+      await new Promise<void>((resolve) => {
         img.onload = () => {
           const canvas = document.createElement('canvas');
           canvas.width = width;
           canvas.height = height;
           const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            reject(new Error('Could not get canvas context'));
-            return;
+
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const imageData = ctx.getImageData(0, 0, width, height);
+            const quantized = quantize(imageData.data, 256);
+            encoder.addFrame(quantized.indexed);
           }
-          ctx.drawImage(img, 0, 0, width, height);
-          const imageData = ctx.getImageData(0, 0, width, height);
-
-          // Quantize the image
-          const quantized = quantize(imageData.data, 256);
-
-          encoder.addFrame(quantized.indexed);
-          URL.revokeObjectURL(url);
           resolve();
         };
-        img.onerror = reject;
       });
     }
 

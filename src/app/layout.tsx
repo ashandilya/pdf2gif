@@ -19,7 +19,6 @@ interface ClientLayoutProps {
 }
 
 function ClientLayout({children}: ClientLayoutProps) {
-  'use client';
   return (
     <html lang="en">
       <body className={roboto.className}>
@@ -34,9 +33,11 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  'use client';
   return (
     <ClientLayout>
       {children}
     </ClientLayout>
   );
 }
+

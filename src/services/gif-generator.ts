@@ -25,11 +25,11 @@ async function readPdf(file: File): Promise<Uint8Array> {
 async function pdfPageToImageData(pdfBytes: Uint8Array, pageNumber: number, width: number, height: number): Promise<string> {
   if (typeof window === 'undefined') {
     // jsdom environment
-    return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAACn০০০.AABgAAAAcEhZcwAADsQAAA7EAZUrDhsAAAANSURBVBhYnJjO3bgYAAACAAAADAqYAAAAASUVORK5CYII=';
+    return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAACnooo.AABgAAAAcEhZcwAADsQAAA7EAZUrDhsAAAANSURBVBhYnJjO3bgYAAACAAAADAqYAAAAASUVORK5CYII=';
   }
 
   const pdfJsLib = await import('pdfjs-dist');
-  pdfJsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfJsLib.version}/pdf.worker.min.js`;
+  pdfJsLib.GlobalWorkerOptions.workerSrc = '//cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
 
   const pdfDoc = await pdfJsLib.getDocument({ data: pdfBytes }).promise;
   const page = await pdfDoc.getPage(pageNumber);
@@ -92,7 +92,7 @@ export async function generateGifFromPdf(pdfFile: File, config: GifConfig): Prom
     const pdfBytes = await readPdf(pdfFile);
 
     const pdfJsLib = await import('pdfjs-dist');
-    pdfJsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfJsLib.version}/pdf.worker.min.js`;
+    pdfJsLib.GlobalWorkerOptions.workerSrc = '//cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
 
     const pdfDoc = await pdfJsLib.getDocument({ data: pdfBytes }).promise;
     const numPages = pdfDoc.numPages;

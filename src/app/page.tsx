@@ -11,6 +11,7 @@ import {Slider} from "@/components/ui/slider";
 import {Switch} from "@/components/ui/switch";
 import {useToast} from "@/hooks/use-toast";
 import {Icons} from "@/components/icons";
+import {SelectItem, SelectTrigger, SelectValue, SelectContent, SelectGroup, Select, SelectLabel} from "@/components/ui/select";
 
 export default function Home() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -23,10 +24,23 @@ export default function Home() {
     looping: true,
   });
   const {toast} = useToast();
+  const [resolution, setResolution] = useState("500x500");
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
-      setPdfFile(event.target.files[0]);
+      const file = event.target.files[0];
+      if (file.type === 'application/pdf') {
+        setPdfFile(file);
+      } else {
+        toast({
+          title: "Invalid file type",
+          description: "Please select a PDF file.",
+          variant: "destructive",
+        });
+        // Optionally clear the input field
+        event.target.value = "";
+      }
+
     }
   };
 
@@ -120,6 +134,12 @@ export default function Home() {
     setGifConfig({...gifConfig, looping: checked});
   };
 
+  const handleResolutionChange = (value: string) => {
+    setResolution(value);
+    setGifConfig({...gifConfig, resolution: value});
+  }
+
+
   return (
     <div className="flex flex-col items-center justify-start min-h-screen bg-background p-8">
       <h1 className="text-4xl font-bold mb-8">PDF to GIF Converter</h1>
@@ -169,6 +189,32 @@ export default function Home() {
               checked={gifConfig.looping}
               onCheckedChange={handleLoopingChange}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="resolution">Resolution</Label>
+            <Select onValueChange={handleResolutionChange} defaultValue={resolution}>
+              <SelectTrigger id="resolution">
+                <SelectValue placeholder="Select resolution" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectLabel>Resolution</SelectLabel>
+                  <SelectItem value="250x250">
+                    250x250
+                  </SelectItem>
+                  <SelectItem value="500x500">
+                    500x500
+                  </SelectItem>
+                  <SelectItem value="750x750">
+                    750x750
+                  </SelectItem>
+                  <SelectItem value="1000x1000">
+                    1000x1000
+                  </SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>

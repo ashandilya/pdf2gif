@@ -1,7 +1,5 @@
 'use server';
 
-import { PDFDocument } from 'pdf-lib';
-
 /**
  * Represents the configuration options for GIF generation.
  */
@@ -36,6 +34,7 @@ export async function generateGifFromPdf(pdfFile: File, config: GifConfig): Prom
   return new Promise(async (resolve, reject) => {
     try {
       const pdfBytes = await readPdf(pdfFile);
+      const { PDFDocument } = await import('pdf-lib');
       const pdfDoc = await PDFDocument.load(pdfBytes);
       const numPages = pdfDoc.getPages().length;
 

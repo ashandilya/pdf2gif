@@ -1,7 +1,7 @@
 'use server';
 
 import { PDFDocument } from 'pdf-lib';
-import { default as GIFEncoder } from '@gifencoder/gifencoder';
+import GIFEncoder from '@gifencoder/gifencoder';
 
 /**
  * Represents the configuration options for GIF generation.
@@ -52,24 +52,30 @@ export async function generateGifFromPdf(pdfFile: File, config: GifConfig): Prom
     for (let i = 0; i < numPages; i++) {
       const page = pdfDoc.getPages()[i];
 
-      // Create a canvas to render the PDF page
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        throw new Error('Could not get canvas context');
-      }
+      // Extract page as PNG
+      const pngBytes = await page.toPngBytes();
 
-      // Render the PDF page to the canvas
-      const pngUrl = await page.toDataURL();
+      // Decode PNG bytes into ImageData
+      const blob = new Blob([pngBytes]);
+      const url = URL.createObjectURL(blob);
       const img = new Image();
-      img.src = pngUrl;
+      img.src = url;
+
       await new Promise<void>((resolve, reject) => {
         img.onload = () => {
+          // Create a canvas and draw the image onto it
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Could not get canvas context'));
+            return;
+          }
           ctx.drawImage(img, 0, 0, width, height);
           const imageData = ctx.getImageData(0, 0, width, height);
           encoder.addFrame(imageData.data);
+          URL.revokeObjectURL(url);
           resolve();
         };
         img.onerror = reject;

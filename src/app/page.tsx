@@ -1,3 +1,211 @@
+"use client";
+
+import {useState} from 'react';
+import {convertPdfToImages} from '@/services/pdf-converter';
+import {generateGif, GifConfig} from '@/services/gif-generator';
+import {Button} from '@/components/ui/button';
+import {Input} from '@/components/ui/input';
+import {Label} from '@/components/ui/label';
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
+import {Slider} from "@/components/ui/slider";
+import {Switch} from "@/components/ui/switch";
+import {useToast} from "@/hooks/use-toast";
+import {Icons} from "@/components/icons";
+
 export default function Home() {
-  return <></>;
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [images, setImages] = useState<string[]>([]);
+  const [gifUrl, setGifUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [gifConfig, setGifConfig] = useState<GifConfig>({
+    frameRate: 10,
+    resolution: '500x500',
+    looping: true,
+  });
+  const {toast} = useToast();
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setPdfFile(event.target.files[0]);
+    }
+  };
+
+  const handleConvertPdfToImages = async () => {
+    if (!pdfFile) {
+      toast({
+        title: "No PDF file selected.",
+        description: "Please upload a PDF file to convert.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const pdfPages = await convertPdfToImages(pdfFile);
+      const imageDatas = pdfPages.map((page) => page.imageData);
+      setImages(imageDatas);
+      toast({
+        title: "PDF converted to images.",
+        description: "The PDF has been successfully converted to images.",
+      });
+    } catch (error) {
+      console.error("Error converting PDF to images:", error);
+      toast({
+        title: "Error converting PDF to images.",
+        description: "There was an error converting the PDF to images. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGenerateGif = async () => {
+    if (!images.length) {
+      toast({
+        title: "No images available.",
+        description: "Please convert a PDF to images first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const blob = await generateGif(images, gifConfig);
+      const url = URL.createObjectURL(blob);
+      setGifUrl(url);
+      toast({
+        title: "GIF generated successfully!",
+        description: "You can now preview and download the GIF.",
+        duration: 5000,
+      });
+    } catch (error) {
+      console.error("Error generating GIF:", error);
+      toast({
+        title: "Error generating GIF.",
+        description: "There was an error generating the GIF. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownloadGif = () => {
+    if (!gifUrl) {
+      toast({
+        title: "No GIF available to download.",
+        description: "Please generate a GIF first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const link = document.createElement('a');
+    link.href = gifUrl;
+    link.download = 'generated.gif';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(gifUrl); // Clean up the URL object
+  };
+
+  const handleFrameRateChange = (value: number[]) => {
+    setGifConfig({...gifConfig, frameRate: value[0]});
+  };
+
+  const handleLoopingChange = (checked: boolean) => {
+    setGifConfig({...gifConfig, looping: checked});
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-start min-h-screen bg-background p-8">
+      <h1 className="text-4xl font-bold mb-8">PDF to GIF Converter</h1>
+
+      <Card className="w-full max-w-md mb-8">
+        <CardHeader>
+          <CardTitle>Upload PDF File</CardTitle>
+          <CardDescription>Select a PDF file from your computer</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center space-x-4">
+            <Label htmlFor="pdf-upload" className="cursor-pointer">
+              <Button variant="secondary" asChild>
+                <label htmlFor="pdf-upload" className="flex items-center space-x-2 cursor-pointer">
+                  <span>Upload PDF</span>
+                  <Icons.file className="h-4 w-4"/>
+                </label>
+              </Button>
+            </Label>
+            <Input id="pdf-upload" type="file" accept="application/pdf" className="hidden"
+                   onChange={handleFileChange}/>
+            {pdfFile && <span className="text-sm">{pdfFile.name}</span>}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="w-full max-w-md mb-8">
+        <CardHeader>
+          <CardTitle>GIF Configuration</CardTitle>
+          <CardDescription>Customize the GIF settings</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="frame-rate">Frame Rate ({gifConfig.frameRate} FPS)</Label>
+            <Slider
+              id="frame-rate"
+              defaultValue={[gifConfig.frameRate]}
+              max={30}
+              step={1}
+              onValueChange={handleFrameRateChange}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="looping">Looping</Label>
+            <Switch
+              id="looping"
+              checked={gifConfig.looping}
+              onCheckedChange={handleLoopingChange}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex space-x-4 mb-8">
+        <Button onClick={handleConvertPdfToImages} disabled={loading}>
+          {loading ? (
+            <>
+              <Icons.loader className="mr-2 h-4 w-4 animate-spin"/>
+              <span>Converting...</span>
+            </>
+          ) : (
+            "Convert PDF to Images"
+          )}
+        </Button>
+        <Button onClick={handleGenerateGif} disabled={loading || images.length === 0}>
+          {loading ? (
+            <>
+              <Icons.loader className="mr-2 h-4 w-4 animate-spin"/>
+              <span>Generating...</span>
+            </>
+          ) : (
+            "Generate GIF"
+          )}
+        </Button>
+      </div>
+
+      {gifUrl && (
+        <div className="flex flex-col items-center mb-8">
+          <h2 className="text-2xl font-semibold mb-4">GIF Preview</h2>
+          <img src={gifUrl} alt="Generated GIF" className="max-w-full h-auto rounded-md shadow-md"/>
+          <Button variant="accent" onClick={handleDownloadGif} className="mt-4">
+            <Icons.arrowRight className="mr-2 h-4 w-4"/>
+            Download GIF
+          </Button>
+        </div>
+      )}
+    </div>
+  );
 }

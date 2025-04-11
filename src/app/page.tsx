@@ -1,8 +1,7 @@
 "use client";
 
 import {useState} from 'react';
-import {convertPdfToImages} from '@/services/pdf-converter';
-import {generateGif, GifConfig} from '@/services/gif-generator';
+import {generateGifFromPdf, GifConfig} from '@/services/gif-generator';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
@@ -15,7 +14,6 @@ import {SelectItem, SelectTrigger, SelectValue, SelectContent, SelectGroup, Sele
 
 export default function Home() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
-  const [images, setImages] = useState<string[]>([]);
   const [gifUrl, setGifUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [gifConfig, setGifConfig] = useState<GifConfig>({
@@ -44,7 +42,7 @@ export default function Home() {
     }
   };
 
-  const handleConvertPdfToImages = async () => {
+  const handleGenerateGif = async () => {
     if (!pdfFile) {
       toast({
         title: "No PDF file selected.",
@@ -56,43 +54,12 @@ export default function Home() {
 
     setLoading(true);
     try {
-      const pdfPages = await convertPdfToImages(pdfFile);
-      const imageDatas = pdfPages.map((page) => page.imageData);
-      setImages(imageDatas);
-      toast({
-        title: "PDF converted to images.",
-        description: "The PDF has been successfully converted to images.",
-      });
-    } catch (error) {
-      console.error("Error converting PDF to images:", error);
-      toast({
-        title: "Error converting PDF to images.",
-        description: "There was an error converting the PDF to images. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGenerateGif = async () => {
-    if (!images.length) {
-      toast({
-        title: "No images available.",
-        description: "Please convert a PDF to images first.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const blob = await generateGif(images, gifConfig);
+      const blob = await generateGifFromPdf(pdfFile, gifConfig);
       const url = URL.createObjectURL(blob);
       setGifUrl(url);
       toast({
         title: "GIF generated successfully!",
-        description: "You can now preview and download the GIF.",
+        description: "You can now download the GIF.",
         duration: 5000,
       });
     } catch (error) {
@@ -220,38 +187,23 @@ export default function Home() {
       </Card>
 
       <div className="flex space-x-4 mb-8">
-        <Button onClick={handleConvertPdfToImages} disabled={loading}>
-          {loading ? (
-            <>
-              <Icons.loader className="mr-2 h-4 w-4 animate-spin"/>
-              <span>Converting...</span>
-            </>
-          ) : (
-            "Convert PDF to Images"
-          )}
-        </Button>
-        <Button onClick={handleGenerateGif} disabled={loading || images.length === 0}>
+        <Button onClick={handleGenerateGif} disabled={loading}>
           {loading ? (
             <>
               <Icons.loader className="mr-2 h-4 w-4 animate-spin"/>
               <span>Generating...</span>
             </>
           ) : (
-            "Generate GIF"
+            "Convert PDF to GIF"
           )}
         </Button>
-      </div>
-
-      {gifUrl && (
-        <div className="flex flex-col items-center mb-8">
-          <h2 className="text-2xl font-semibold mb-4">GIF Preview</h2>
-          <img src={gifUrl} alt="Generated GIF" className="max-w-full h-auto rounded-md shadow-md"/>
+        {gifUrl && (
           <Button variant="accent" onClick={handleDownloadGif} className="mt-4">
             <Icons.arrowRight className="mr-2 h-4 w-4"/>
             Download GIF
           </Button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

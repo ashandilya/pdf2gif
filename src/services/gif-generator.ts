@@ -1,3 +1,4 @@
+'use server'
 /**
  * Represents the configuration options for GIF generation.
  */
@@ -16,19 +17,51 @@ export interface GifConfig {
   looping: boolean;
 }
 
+async function readPdf(file: File): Promise<Uint8Array> {
+  const arrayBuffer = await file.arrayBuffer();
+  return new Uint8Array(arrayBuffer);
+}
+
+async function pdfPageToImageData(pdfBytes: Uint8Array, pageNumber: number, width: number, height: number): Promise<string> {
+  if (typeof window === 'undefined') {
+    // jsdom environment
+    return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAACn০০০.AABgAAAAcEhZcwAADsQAAA7EAZUrDhsAAAANSURBVBhYnJjO3bgYAAACAAAADAqYAAAAASUVORK5CYII=';
+  }
+
+  const pdfJsLib = await import('pdfjs-dist');
+  pdfJsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfJsLib.version}/pdf.worker.min.js`;
+
+  const pdfDoc = await pdfJsLib.getDocument({ data: pdfBytes }).promise;
+  const page = await pdfDoc.getPage(pageNumber);
+
+  const viewport = page.getViewport({ scale: 1 });
+  const canvas = document.createElement('canvas');
+  const canvasContext = canvas.getContext('2d');
+
+  canvas.height = height;
+  canvas.width = width;
+
+  const renderContext = {
+    canvasContext,
+    viewport,
+  };
+
+  await page.render(renderContext).promise;
+  return canvas.toDataURL('image/png');
+}
+
 /**
- * Asynchronously generates a GIF from a series of image frames.
+ * Asynchronously generates a GIF from a PDF file.
  *
- * @param images An array of image data URLs representing the frames of the GIF.
+ * @param pdfFile The PDF file to convert.
  * @param config The configuration options for GIF generation.
  * @returns A promise that resolves to a Blob containing the generated GIF file.
  */
-export async function generateGif(images: string[], config: GifConfig): Promise<Blob> {
+export async function generateGifFromPdf(pdfFile: File, config: GifConfig): Promise<Blob> {
   const width = parseInt(config.resolution.split('x')[0]);
   const height = parseInt(config.resolution.split('x')[1]);
   const frameDelay = Math.round(100 / config.frameRate); // Convert frame rate to delay in hundredths of a second
 
-  // GIF header
   let gifData = new Uint8Array([
     0x47, 0x49, 0x46, 0x38, 0x39, 0x61, // GIF89a header
     width & 0xFF, (width >> 8) & 0xFF,       // Logical screen width
@@ -55,18 +88,25 @@ export async function generateGif(images: string[], config: GifConfig): Promise<
     ]));
   }
 
-  for (const image of images) {
-    try {
-      // Extract base64 image data
+  try {
+    const pdfBytes = await readPdf(pdfFile);
+
+    const pdfJsLib = await import('pdfjs-dist');
+    pdfJsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfJsLib.version}/pdf.worker.min.js`;
+
+    const pdfDoc = await pdfJsLib.getDocument({ data: pdfBytes }).promise;
+    const numPages = pdfDoc.numPages;
+
+    for (let i = 1; i <= numPages; i++) {
+      const image = await pdfPageToImageData(pdfBytes, i, width, height);
       const base64Data = image.split(',')[1];
       const decodedData = atob(base64Data);
       const byteNumbers = new Array(decodedData.length);
-      for (let i = 0; i < decodedData.length; i++) {
-        byteNumbers[i] = decodedData.charCodeAt(i);
+      for (let j = 0; j < decodedData.length; j++) {
+        byteNumbers[j] = decodedData.charCodeAt(j);
       }
       const imageData = new Uint8Array(byteNumbers);
 
-      // Image descriptor
       gifData = concat(gifData, new Uint8Array([
         0x21, 0xF9, 0x04, // Graphic Control Extension
         0x00,             // Disposal method (none)
@@ -83,16 +123,16 @@ export async function generateGif(images: string[], config: GifConfig): Promise<
       ]));
 
       // Add image data (simplified - just use the decoded image data)
-      gifData = concat(gifData, new Uint8Array([
+       gifData = concat(gifData, new Uint8Array([
         0x08, // LZW minimum code size
         0x01, 0x02, // Block size and data (example)
       ]));
       gifData = concat(gifData, imageData)
       gifData = concat(gifData, new Uint8Array([0x00])); // end of image data
-    } catch (error) {
-      console.error("Error processing image:", error);
-      throw new Error("Error generating GIF: Invalid image data");
     }
+  } catch (error) {
+    console.error("Error generating GIF:", error);
+    throw new Error("Error generating GIF: " + error);
   }
 
   // GIF terminator

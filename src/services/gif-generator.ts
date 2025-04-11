@@ -1,7 +1,7 @@
 'use server';
 
 import { PDFDocument } from 'pdf-lib';
-import GIFEncoder from '@gifencoder/gifencoder';
+import { GIFEncoder, quantize } from 'gifenc';
 
 /**
  * Represents the configuration options for GIF generation.
@@ -43,27 +43,23 @@ export async function generateGifFromPdf(pdfFile: File, config: GifConfig): Prom
     const height = parseInt(config.resolution.split('x')[1]);
     const frameDelay = Math.round(100 / config.frameRate);
 
-    const encoder = new GIFEncoder(width, height);
-    encoder.start();
+    const encoder = GIFEncoder();
+    encoder.setFrameRate(config.frameRate);
     encoder.setRepeat(config.looping ? 0 : -1);
-    encoder.setDelay(frameDelay);
-    encoder.setQuality(10);
+    encoder.setSize(width, height);
+    encoder.start();
 
     for (let i = 0; i < numPages; i++) {
       const page = pdfDoc.getPages()[i];
-
-      // Extract page as PNG
       const pngBytes = await page.toPngBytes();
 
-      // Decode PNG bytes into ImageData
       const blob = new Blob([pngBytes]);
       const url = URL.createObjectURL(blob);
+
       const img = new Image();
       img.src = url;
-
       await new Promise<void>((resolve, reject) => {
         img.onload = () => {
-          // Create a canvas and draw the image onto it
           const canvas = document.createElement('canvas');
           canvas.width = width;
           canvas.height = height;
@@ -74,7 +70,11 @@ export async function generateGifFromPdf(pdfFile: File, config: GifConfig): Prom
           }
           ctx.drawImage(img, 0, 0, width, height);
           const imageData = ctx.getImageData(0, 0, width, height);
-          encoder.addFrame(imageData.data);
+
+          // Quantize the image
+          const quantized = quantize(imageData.data, 256);
+
+          encoder.addFrame(quantized.indexed);
           URL.revokeObjectURL(url);
           resolve();
         };
@@ -83,8 +83,8 @@ export async function generateGifFromPdf(pdfFile: File, config: GifConfig): Prom
     }
 
     encoder.finish();
-    const buffer = encoder.out.getData();
-    return new Blob([buffer], { type: 'image/gif' });
+    const buffer = encoder.bytes();
+    return new Blob([buffer], {type: 'image/gif'});
 
   } catch (error: any) {
     console.error("Error generating GIF:", error);

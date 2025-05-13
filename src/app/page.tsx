@@ -15,14 +15,6 @@ import { Moon, Sun, FolderSearch } from "lucide-react";
 
 const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 
-// SVGs for Dropbox and Google Drive
-const DropboxIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.5 3L12 6.5L7 9.5L1.5 6L6.5 3ZM12 6.5L17.5 3L22.5 6L17 9.5L12 6.5ZM1.5 13L7 16.5L12 13L6.5 9.5L1.5 13ZM12 13L17 16.5L22.5 13L17.5 9.5L12 13ZM7 18.5L12 21.5L17 18.5L12 15.5L7 18.5Z" fill="white"/></svg>
-);
-const GoogleDriveIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.5 3L1 14L4.5 20.5H19.5L23 14L16.5 3H7.5ZM7.5 5H16.5L21.5 14L18.5 19H5.5L2.5 14L7.5 5ZM12 7.5L8.5 14H15.5L12 7.5Z" fill="white"/></svg>
-);
-
 // Extend GifConfig to include pageRange
 interface GifConfig extends OriginalGifConfig {
   pageRange?: string;
@@ -223,16 +215,14 @@ function GifGenerator() {
         </p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8 w-full max-w-4xl min-h-[560px]">
-        <div className="flex flex-col space-y-4 sm:space-y-6 h-full min-h-[560px]">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8 w-full max-w-4xl" style={{ minHeight: '210px' }}>
+        <div className="flex flex-col space-y-4 sm:space-y-6 h-full" style={{ minHeight: '210px' }}>
           <Card className="shadow-2xl rounded-xl w-full max-w-full flex flex-col justify-center overflow-hidden box-border bg-red-600 min-h-[90px] max-h-[90px] p-3">
             <Label htmlFor="pdf-upload" className="w-full cursor-pointer h-full flex flex-col justify-center">
               <div className="flex items-center justify-between w-full px-2 py-2 h-full">
-                <span className="text-white font-semibold text-base">Choose Files</span>
-                <div className="flex items-center space-x-2">
+                <span className="text-white font-semibold text-base">Choose PDF File</span>
+                <div className="flex items-center">
                   <FolderSearch className="w-5 h-5 text-white opacity-90" />
-                  <span className="w-5 h-5">{DropboxIcon()}</span>
-                  <span className="w-5 h-5">{GoogleDriveIcon()}</span>
                 </div>
               </div>
               <Input id="pdf-upload" type="file" accept="application/pdf" className="hidden" onChange={handleFileChange} />
@@ -243,7 +233,7 @@ function GifGenerator() {
               </div>
             </Label>
           </Card>
-          <Card className="shadow-2xl rounded-xl w-full max-w-full min-h-[160px] max-h-[160px] flex flex-col justify-center bg-white dark:bg-black p-3">
+          <Card className="shadow-2xl rounded-xl w-full max-w-full min-h-[110px] max-h-[110px] flex flex-col justify-center bg-white dark:bg-black p-3">
             <CardHeader className="p-0 pb-1">
               <CardTitle className="text-base">2. Configure GIF</CardTitle>
               <CardDescription className="text-xs">Adjust settings for your output GIF.</CardDescription>
@@ -265,38 +255,6 @@ function GifGenerator() {
                   className="h-2"
                 />
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="resolution" className="text-sm">Resolution</Label>
-                <Select onValueChange={handleResolutionChange} defaultValue={resolution}>
-                  <SelectTrigger id="resolution" aria-label="Resolution" className="h-8 text-sm">
-                    <SelectValue placeholder="Select resolution" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectLabel>Resolution</SelectLabel>
-                      <SelectItem value="250xauto">250px width (auto height)</SelectItem>
-                      <SelectItem value="500xauto">500px width (auto height)</SelectItem>
-                      <SelectItem value="750xauto">750px width (auto height)</SelectItem>
-                      <SelectItem value="original">Original PDF Page Size</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  {resolution.includes('xauto') ? `Width set, height will adjust.` : `Match PDF page size.`}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="page-range" className="text-sm">Page Range</Label>
-                <Input
-                  id="page-range"
-                  type="text"
-                  placeholder="e.g. 1-3,5,7"
-                  value={gifConfig.pageRange}
-                  onChange={e => setGifConfig({ ...gifConfig, pageRange: e.target.value })}
-                  className="w-full h-8 text-sm"
-                />
-                <p className="text-xs text-muted-foreground">Enter page numbers or ranges (e.g. 1-3,5,7). Leave blank for all pages.</p>
-              </div>
               <div className="flex items-center justify-between">
                 <Label htmlFor="looping" className="text-sm">Loop GIF</Label>
                 <Switch
@@ -310,7 +268,7 @@ function GifGenerator() {
             </CardContent>
           </Card>
         </div>
-        <Card className="shadow-2xl rounded-xl h-full flex flex-col justify-between w-full max-w-full min-h-[210px] max-h-[210px] bg-white dark:bg-black p-3">
+        <Card className="shadow-2xl rounded-xl h-full flex flex-col justify-between w-full max-w-full bg-white dark:bg-black p-3" style={{ minHeight: '210px', height: '100%' }}>
           <CardHeader>
             <CardTitle className="text-xl sm:text-2xl">3. Preview & Download</CardTitle>
             <CardDescription className="text-xs sm:text-base">Your generated GIF will appear here.</CardDescription>

@@ -1,20 +1,34 @@
-'use server';
+'use client';
 
-import { PDFDocument, PDFPage } from 'pdf-lib';
-// Note: gif.js will be dynamically imported on the client-side in page.tsx
-// as it relies on browser APIs like Image and Canvas.
+// This file is intended for client-side operations.
+import * as pdfjsLib from 'pdfjs-dist/build/pdf.js'; 
+import GIF from 'gif.js/dist/gif'; // Adjusted import for gif.js
+
+// Configure the PDF.js worker.
+// IMPORTANT: You MUST copy 'pdf.worker.js' from 'node_modules/pdfjs-dist/build/pdf.worker.js'
+// to your 'public' directory and ensure this path is correct.
+if (typeof window !== 'undefined') {
+  // Ensure the workerSrc is set. If pdf.worker.js is a placeholder, PDF rendering will likely fail or be very slow.
+  // The path should match the location in your `public` folder.
+  // Check if pdf.worker.js is available, if not, pdfjs will try to load it from CDN or fail.
+  const workerUrl = '/pdf.worker.js'; 
+  // Test if workerUrl is accessible, not strictly necessary but good for debugging
+  // fetch(workerUrl).then(res => { if(!res.ok) console.warn(`pdf.worker.js not found at ${workerUrl}`)})
+  pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+}
 
 /**
  * Represents the configuration options for GIF generation.
  */
 export interface GifConfig {
   /**
-   * The frame rate of the GIF.
+   * The frame rate of the GIF (frames per second).
    */
   frameRate: number;
   /**
    * The resolution of the GIF.
    * Can be 'original' or 'WIDTHxauto' (e.g., '500xauto').
+   * If 'WIDTHxauto', specifies the target width, height is auto-scaled.
    */
   resolution: string;
   /**
@@ -23,202 +37,161 @@ export interface GifConfig {
   looping: boolean;
 }
 
-async function renderPdfPageToCanvas(page: PDFPage, targetWidth?: number): Promise<HTMLCanvasElement> {
-  const viewport = page.getViewport({ scale: 1.5 }); // Render at a higher scale for better quality then downscale
-  
-  let scale = 1;
-  let canvasWidth = viewport.width;
-  let canvasHeight = viewport.height;
-
-  if (targetWidth && targetWidth > 0) {
-    scale = targetWidth / viewport.width;
-    canvasWidth = targetWidth;
-    canvasHeight = viewport.height * scale;
-  } else { // 'original' resolution
-    // Use viewport dimensions directly
-  }
-
-  canvasWidth = Math.round(canvasWidth);
-  canvasHeight = Math.round(canvasHeight);
-  
-  const canvas = document.createElement('canvas');
-  canvas.width = canvasWidth;
-  canvas.height = canvasHeight;
-  const context = canvas.getContext('2d');
-
-  if (!context) {
-    throw new Error('Could not get 2D rendering context from canvas');
-  }
-
-  const renderContext = {
-    canvasContext: context,
-    viewport: page.getViewport({ scale: scale }), // Use the calculated scale
-  };
-
-  // pdf-lib does not have a direct page.render method like pdf.js
-  // Instead, we need to draw the page content onto the canvas.
-  // This is a simplified representation. For complex PDFs, drawing operations would be needed.
-  // For this example, we'll convert the page to an image (PNG) and draw that onto the canvas.
-  // This requires an intermediate step.
-
-  // Convert page to PNG bytes using pdf-lib (if this functionality were directly available)
-  // As pdf-lib can't directly render to canvas in the browser without pdf.js or similar,
-  // we'll simulate this by drawing a placeholder or relying on the page.toPngBytes() approach
-  // that was in the original file, assuming it can be adapted.
-
-  // For a robust client-side PDF page to image conversion, pdf.js-dist is typically used.
-  // Since we are trying to use pdf-lib and gif.js:
-  // The most straightforward way with pdf-lib is to get page image data if possible or draw its content.
-  // pdf-lib's `embedPng` and `drawImage` are for adding images to a PDF, not extracting.
-  // `page.render()` is not a method in pdf-lib.
-
-  // Let's assume we can get an ImageData representation from the page somehow,
-  // or adapt the PNG conversion approach. For this example, we'll draw a colored rectangle
-  // representing the page size for simplicity as direct rendering from pdf-lib to canvas is complex.
-
-  // Simplified: Draw page as a colored rectangle to show it's processed
-  // For actual rendering, you'd need a more complex approach or use pdf.js-dist for rendering.
-  // However, the original user code used page.toPngBytes() which is not a standard pdf-lib method.
-  // It seems the user might have been using a fork or a different library previously.
-  // Let's stick to what's possible with standard pdf-lib and gif.js.
-  // The `page.render()` method is from pdf.js, not pdf-lib.
-  // pdf-lib doesn't have a direct render to canvas.
-  // The previous attempt used `page.toPngBytes()`, which is not in `pdf-lib`.
-  // It's likely the original `gif-generator.ts` was based on a different setup.
-
-  // Let's proceed with a conceptual approach assuming we can get image data.
-  // Since `page.toPngBytes()` isn't standard, we cannot directly use it.
-  // And pdf-lib focuses on PDF manipulation, not rendering to canvas.
-
-  // Given the constraints and the libraries specified (pdf-lib, gif.js),
-  // a robust solution for rendering PDF pages to images client-side usually involves pdf.js.
-  // If we MUST use only pdf-lib for page data, it's very limited for rendering.
-
-  // Reverting to a strategy that uses an intermediate PNG step, assuming some way to get it.
-  // Since this is 'use server', direct DOM manipulation is tricky.
-  // The generateGifFromPdf function should be callable from a client component.
-  // The error `document is not defined` indicates server-side execution of client code.
-  // The dynamic import of gif.js in page.tsx was correct.
-  // This function (`generateGifFromPdf`) itself is marked 'use server',
-  // but it's being called *from* the client with a File object.
-  // The actual image processing (canvas, Image()) MUST happen client-side.
-
-  // This function should NOT be 'use server' if it's doing client-side canvas work.
-  // Let's remove 'use server' and assume it's part of the client-side bundle.
-  // This means it will be bundled with client-side JS.
-
-  // The error `document is not defined` in `generateGifFromPdf` from `gif.js` or `pdf-lib` (if it tries DOM ops)
-  // means it's running on the server.
-  // The function `generateGifFromPdf` is *called* from a client component,
-  // but its 'use server' directive means its *body* executes on the server.
-  // This is a mismatch for DOM-dependent libraries like gif.js.
-
-  // Solution: The core processing loop involving canvas and Image must be client-side.
-  // The 'use server' on this file is problematic for this task.
-  // We will make this file fully client-side logic.
-
-  // Create a dummy image for now as pdf-lib doesn't render directly.
-  // This part needs to be replaced with actual PDF page rendering if using pdf.js
-  // For now, to make it "work" with gif.js, we'll draw a placeholder.
-  const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
-  context.fillStyle = colors[Math.floor(Math.random() * colors.length)];
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.fillStyle = 'black';
-  context.font = '20px Arial';
-  context.fillText(`Page (Size: ${canvas.width}x${canvas.height})`, 10, 30);
-  
-  return canvas;
-}
-
-
 /**
- * Asynchronously generates a GIF from a PDF file.
- * This function is intended to run on the client-side due to DOM dependencies.
+ * Asynchronously generates a GIF from a PDF file on the client-side.
  *
  * @param pdfFile The PDF file to convert.
  * @param config The configuration options for GIF generation.
  * @returns A promise that resolves to a Blob containing the generated GIF file.
  */
 export async function generateGifFromPdf(pdfFile: File, config: GifConfig): Promise<Blob> {
-  // Dynamically import GIF.js only on the client side
-  const GIF = (await import('gif.js')).default;
+  if (typeof window === 'undefined') {
+    throw new Error('generateGifFromPdf can only be called on the client-side.');
+  }
   
-  const pdfBytes = await pdfFile.arrayBuffer();
-  const pdfDoc = await PDFDocument.load(pdfBytes);
-  const numPages = pdfDoc.getPages().length;
-
-  let targetWidth: number | undefined = undefined;
-  if (config.resolution !== 'original') {
-    targetWidth = parseInt(config.resolution.split('x')[0], 10);
+  // Ensure GIF library is available (it should be, due to the import)
+  if (!GIF) {
+    throw new Error("GIF library (gif.js) failed to load or is not available.");
   }
 
-  const gif = new GIF({
-    workers: 2, // Number of web workers to use
-    quality: 10, // Lower is better, but slower
-    workerScript: '/gif.worker.js', // Path to gif.worker.js
-    repeat: config.looping ? 0 : -1, // 0 for loop, -1 for no loop
-    width: targetWidth, // Initial width, might be adjusted by first frame if original
-    height: undefined, // Initial height, might be adjusted
-    transparent: null, // Transparent color (hex) or null for none
+  const pdfBytes = await pdfFile.arrayBuffer();
+  const pdfDoc = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+  const numPages = pdfDoc.numPages;
+
+  let targetWidth: number | undefined = undefined;
+  let gifWidth: number | undefined = undefined;
+  let gifHeight: number | undefined = undefined;
+
+  if (config.resolution !== 'original' && config.resolution.includes('xauto')) {
+    targetWidth = parseInt(config.resolution.split('xauto')[0], 10);
+    if (isNaN(targetWidth) || targetWidth <=0) {
+        console.warn(`Invalid target width in resolution: ${config.resolution}. Falling back to original.`);
+        targetWidth = undefined;
+    }
+  }
+
+  // Initialize gif.js
+  // Note: gif.js expects width and height to be set if known, otherwise it might take from the first frame.
+  // We'll set them after processing the first page.
+  const gifInstance = new GIF({
+    workers: 2, 
+    quality: 10, 
+    workerScript: '/gif.worker.js', // Path to gif.worker.js in the public folder
+    repeat: config.looping ? 0 : -1, 
+    // width and height will be set dynamically from the first frame
   });
 
-  const frameDelay = Math.round(1000 / config.frameRate);
+  const frameDelay = Math.max(20, Math.round(1000 / config.frameRate)); // Delay in milliseconds, ensure minimum delay
 
-  for (let i = 0; i < numPages; i++) {
-    const page = pdfDoc.getPage(i);
-    
-    // To properly render PDF page to an image for the GIF frame:
-    // We need a library like pdf.js-dist to render page to canvas.
-    // pdf-lib is for creating/modifying PDFs, not primarily rendering.
-    // The following is a placeholder. For real rendering, integrate pdf.js.
-    
-    const pageViewport = page.getViewport({ scale: 1.0 });
-    let frameWidth = Math.round(pageViewport.width);
-    let frameHeight = Math.round(pageViewport.height);
+  for (let i = 1; i <= numPages; i++) {
+    const page = await pdfDoc.getPage(i);
+    const originalViewport = page.getViewport({ scale: 1.0 });
+
+    let scale = 1.0;
+    let currentFrameRenderWidth = originalViewport.width;
+    let currentFrameRenderHeight = originalViewport.height;
 
     if (targetWidth) {
-      const scale = targetWidth / frameWidth;
-      frameWidth = targetWidth;
-      frameHeight = Math.round(frameHeight * scale);
-    }
-
-    // If this is the first frame and resolution is 'original', set GIF dimensions
-    if (i === 0 && !targetWidth) {
-        gif.options.width = frameWidth;
-        gif.options.height = frameHeight;
+      scale = targetWidth / originalViewport.width;
+      currentFrameRenderWidth = targetWidth;
+      currentFrameRenderHeight = Math.floor(originalViewport.height * scale);
+    } else if (config.resolution === 'original') {
+        // Use original dimensions, ensuring they are integers
+        currentFrameRenderWidth = Math.floor(originalViewport.width);
+        currentFrameRenderHeight = Math.floor(originalViewport.height);
+    } else { // Default or fallback if resolution string is malformed
+        // Default to a reasonable width if targetWidth was invalid
+        const defaultWidth = 500;
+        scale = defaultWidth / originalViewport.width;
+        currentFrameRenderWidth = defaultWidth;
+        currentFrameRenderHeight = Math.floor(originalViewport.height * scale);
     }
     
-    // Create a canvas for the current page.
+    // Ensure dimensions are positive
+    currentFrameRenderWidth = Math.max(1, currentFrameRenderWidth);
+    currentFrameRenderHeight = Math.max(1, currentFrameRenderHeight);
+
+    if (i === 1) {
+        gifWidth = currentFrameRenderWidth;
+        gifHeight = currentFrameRenderHeight;
+        // @ts-ignore Property 'width' does not exist on type 'GIF'. gif.js is not well-typed.
+        gifInstance.options.width = gifWidth;
+        // @ts-ignore
+        gifInstance.options.height = gifHeight;
+    }
+
+    const viewport = page.getViewport({ scale });
+    
     const canvas = document.createElement('canvas');
-    canvas.width = gif.options.width || frameWidth; // Use GIF's width if set, else current frame
-    canvas.height = gif.options.height || frameHeight; // Use GIF's height if set, else current frame
-    const ctx = canvas.getContext('2d');
+    canvas.width = Math.floor(viewport.width); // Use viewport dimensions from scale
+    canvas.height = Math.floor(viewport.height);
+    // Ensure canvas dimensions are positive
+    if (canvas.width <= 0) canvas.width = 1;
+    if (canvas.height <= 0) canvas.height = 1;
 
-    if (!ctx) {
-      throw new Error('Failed to get canvas context');
+
+    const context = canvas.getContext('2d');
+    if (!context) {
+      throw new Error('Could not get 2D rendering context from canvas for PDF page.');
+    }
+
+    const renderContext = {
+      canvasContext: context,
+      viewport: viewport,
+    };
+    await page.render(renderContext).promise;
+
+    // The canvas now contains the rendered page at its scaled size.
+    // gif.js can usually handle frames of slightly different sizes, but it's best if they are consistent.
+    // If the first frame set gifWidth/gifHeight, and subsequent frames differ, we might need to resize/re-draw.
+    let frameToAdd: CanvasRenderingContext2D | HTMLImageElement | ImageData = context.canvas;
+
+    if (gifWidth && gifHeight && (canvas.width !== gifWidth || canvas.height !== gifHeight)) {
+        // Create a new canvas with the target GIF dimensions and draw the current page onto it.
+        const sizedCanvas = document.createElement('canvas');
+        sizedCanvas.width = gifWidth;
+        sizedCanvas.height = gifHeight;
+        const sizedContext = sizedCanvas.getContext('2d');
+        if (!sizedContext) {
+            throw new Error('Could not get 2D context for sized canvas for frame adjustment.');
+        }
+        // Fill background (optional, if pages are transparent or smaller)
+        // sizedContext.fillStyle = '#FFFFFF'; // Example: white background
+        // sizedContext.fillRect(0, 0, gifWidth, gifHeight);
+
+        // Draw the rendered page image onto the correctly sized canvas
+        // This example will center and scale to fit (letterbox/pillarbox).
+        const drawRatio = Math.min(gifWidth / canvas.width, gifHeight / canvas.height);
+        const drawnWidth = canvas.width * drawRatio;
+        const drawnHeight = canvas.height * drawRatio;
+        const offsetX = (gifWidth - drawnWidth) / 2;
+        const offsetY = (gifHeight - drawnHeight) / 2;
+        
+        sizedContext.drawImage(canvas, offsetX, offsetY, drawnWidth, drawnHeight);
+        frameToAdd = sizedContext.canvas;
     }
     
-    // Placeholder rendering: Draw a colored rectangle with page number
-    // In a real scenario, you'd use pdf.js to render the page onto this canvas.
-    // Example: const renderTask = page.render({ canvasContext: ctx, viewport: viewport }); await renderTask.promise;
-    ctx.fillStyle = `hsl(${ (i * 60) % 360 }, 100%, 80%)`;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = 'black';
-    ctx.font = '16px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(`Page ${i + 1}`, canvas.width / 2, canvas.height / 2);
-    // End placeholder rendering
-    
-    gif.addFrame(ctx, { delay: frameDelay, copy: true });
+    // Add the canvas (or its context) to the GIF
+    // `copy: true` is important if you're reusing the canvas/context object
+    gifInstance.addFrame(frameToAdd, { delay: frameDelay, copy: true }); 
   }
 
   return new Promise((resolve, reject) => {
-    gif.on('finished', (blob: Blob) => {
+    gifInstance.on('finished', (blob: Blob) => {
+      if (blob.size === 0) {
+        reject(new Error('GIF generation resulted in an empty blob. Check console for errors.'));
+        return;
+      }
       resolve(blob);
     });
-    gif.on('abort', () => {
-        reject(new Error('GIF generation aborted.'));
+    // @ts-ignore gif.js 'error' event may not be formally typed
+    gifInstance.on('error', (err: any) => {
+      reject(new Error(`GIF generation failed: ${err?.message || err}`));
     });
-    gif.render();
+    gifInstance.on('progress', (p: number) => {
+      // console.log(`GIF rendering progress: ${Math.round(p * 100)}%`);
+      // Potentially update UI with progress here
+    });
+    gifInstance.render();
   });
 }

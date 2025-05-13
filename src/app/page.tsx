@@ -68,7 +68,6 @@ function GifGenerator() {
     };
   }, [gifUrl]);
 
-
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
@@ -180,6 +179,13 @@ function GifGenerator() {
     setGifConfig({ ...gifConfig, resolution: value });
   }
 
+  useEffect(() => {
+    if (pdfFile) {
+      handleGenerateGif(pdfFile);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gifConfig.frameRate, gifConfig.resolution, gifConfig.looping]);
+
   if (!isClient) {
     return (
        <div className="flex items-center justify-center min-h-screen">
@@ -205,7 +211,7 @@ function GifGenerator() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
         <div className="space-y-6">
-          <Card className="shadow-lg rounded-xl">
+          <Card className="shadow-lg rounded-xl" style={{ minHeight: '220px', maxHeight: '220px' }}>
             <CardHeader>
               <CardTitle className="text-2xl">1. Upload PDF</CardTitle>
               <CardDescription>Select a PDF file (max {MAX_PDF_SIZE_BYTES / 1024 / 1024}MB) from your computer.</CardDescription>
@@ -215,7 +221,7 @@ function GifGenerator() {
                 <Label htmlFor="pdf-upload" className="w-full">
                   <div className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors">
                     <Icons.fileUp className="w-10 h-10 text-muted-foreground mb-2" />
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-sm text-muted-foreground truncate max-w-[90%] block">
                       {pdfFile ? pdfFile.name : "Click or drag PDF here"}
                     </span>
                   </div>
@@ -225,8 +231,8 @@ function GifGenerator() {
               </div>
             </CardContent>
             {pdfFile && (
-               <CardFooter className="text-xs text-muted-foreground">
-                 Selected: {pdfFile.name} ({(pdfFile.size / 1024 / 1024).toFixed(2)} MB)
+               <CardFooter className="text-xs text-muted-foreground truncate max-w-[90%] block">
+                 Selected: <span className="truncate inline-block align-bottom max-w-[80%]">{pdfFile.name}</span> ({(pdfFile.size / 1024 / 1024).toFixed(2)} MB)
                </CardFooter>
             )}
           </Card>

@@ -13,7 +13,7 @@ import { Icons } from "@/components/icons";
 import { SelectItem, SelectTrigger, SelectValue, SelectContent, SelectGroup, Select, SelectLabel } from "@/components/ui/select";
 
 
-const MAX_PDF_SIZE_BYTES = 8 * 1024 * 1024; // 8MB
+const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 
 function GifGenerator() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -189,7 +189,7 @@ function GifGenerator() {
           <Card className="shadow-lg rounded-xl">
             <CardHeader>
               <CardTitle className="text-2xl">1. Upload PDF</CardTitle>
-              <CardDescription>Select a PDF file (max 8MB) from your computer.</CardDescription>
+              <CardDescription>Select a PDF file (max {MAX_PDF_SIZE_BYTES / 1024 / 1024}MB) from your computer.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex flex-col items-center space-y-4">
@@ -345,3 +345,4 @@ function GifGenerator() {
 export default function Home() {
   return <GifGenerator />;
 }
+

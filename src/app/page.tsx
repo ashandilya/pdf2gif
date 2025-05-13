@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Icons } from "@/components/icons";
 import { SelectItem, SelectTrigger, SelectValue, SelectContent, SelectGroup, Select, SelectLabel } from "@/components/ui/select";
-
+import { Moon, Sun } from "lucide-react";
 
 const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 
@@ -20,6 +20,7 @@ function GifGenerator() {
   const [gifUrl, setGifUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<number>(0);
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [gifConfig, setGifConfig] = useState<GifConfig>({
     frameRate: 10,
     resolution: '500xauto',
@@ -31,7 +32,21 @@ function GifGenerator() {
 
   useEffect(() => {
     setIsClient(true);
+    // Check system preference for theme
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      setTheme('dark');
+    }
   }, []);
+
+  useEffect(() => {
+    // Apply theme to document
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(theme === 'light' ? 'dark' : 'light');
+  };
 
   const revokeGifUrl = useCallback(() => {
     if (gifUrl) {
@@ -86,11 +101,15 @@ function GifGenerator() {
       setPdfFile(file);
       revokeGifUrl(); // Revoke previous URL if exists
       setProgress(0); // Reset progress
+      
+      // Start generating GIF immediately when file is selected
+      handleGenerateGif(file);
     }
   };
 
-  const handleGenerateGif = async () => {
-    if (!pdfFile) {
+  const handleGenerateGif = async (file?: File) => {
+    const pdfToUse = file || pdfFile;
+    if (!pdfToUse) {
       toast({
         title: "No PDF file selected.",
         description: "Please upload a PDF file to convert.",
@@ -105,7 +124,7 @@ function GifGenerator() {
     console.log("Starting GIF generation with config:", gifConfig);
 
     try {
-      const blob = await generateGifFromPdf(pdfFile, gifConfig, (p) => {
+      const blob = await generateGifFromPdf(pdfToUse, gifConfig, (p) => {
          setProgress(p); 
       });
       console.log("Generated GIF blob:", blob);
@@ -115,7 +134,7 @@ function GifGenerator() {
         setGifUrl(newGifUrl); // Set the new URL
          toast({
             title: "GIF generated successfully!",
-            description: "You can now preview and download the GIF.",
+            description: "You can now download the GIF.",
             className: "bg-green-500 text-white",
             duration: 5000,
          });
@@ -137,23 +156,15 @@ function GifGenerator() {
     }
   };
 
-  const handleDownloadGif = () => {
-    if (!gifUrl) {
-      toast({
-        title: "No GIF available to download.",
-        description: "Please generate a GIF first.",
-        variant: "destructive",
-      });
-      return;
+  const handleDownload = () => {
+    if (gifUrl) {
+      const link = document.createElement('a');
+      link.href = gifUrl;
+      link.download = `${pdfFile?.name.replace('.pdf', '') || 'converted'}.gif`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
-
-    const link = document.createElement('a');
-    link.href = gifUrl;
-    link.download = `${pdfFile?.name.replace('.pdf', '') || 'generated'}.gif`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-     console.log("Download triggered for:", gifUrl);
   };
 
   const handleFrameRateChange = (value: number[]) => {
@@ -180,8 +191,16 @@ function GifGenerator() {
   return (
     <div className="flex flex-col items-center justify-start min-h-screen bg-background p-4 md:p-8">
       <header className="w-full py-6 mb-8">
-        <h1 className="text-5xl font-bold text-center text-primary">PDF2GIF</h1>
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-5xl font-bold text-center text-primary">PDF2GIF</h1>
+          <Button variant="ghost" size="icon" onClick={toggleTheme}>
+            {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+          </Button>
+        </div>
         <p className="text-center text-muted-foreground mt-2">Easily convert your PDF files into animated GIFs</p>
+        <p className="text-center text-muted-foreground mt-2">
+          Know the person behind this? <a href="https://www.linkedin.com/in/ashandilya64/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Connect on LinkedIn</a>
+        </p>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
@@ -267,72 +286,74 @@ function GifGenerator() {
             </CardContent>
           </Card>
 
-          <Button onClick={handleGenerateGif} disabled={loading || !pdfFile} className="w-full text-lg py-6 rounded-xl shadow-md">
-            {loading ? (
-              <>
-                <Icons.loader className="mr-2 h-5 w-5 animate-spin" />
-                <span>Generating GIF ({Math.round(progress * 100)}%)...</span>
-              </>
-            ) : (
-              <>
-                <Icons.sparkles className="mr-2 h-5 w-5" />
-                <span>Convert to GIF</span>
-              </>
-            )}
-          </Button>
-        </div>
-
-        <Card className="shadow-lg rounded-xl">
-          <CardHeader>
-            <CardTitle className="text-2xl">3. Preview & Download</CardTitle>
-            <CardDescription>Your generated GIF will appear here.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center h-full min-h-[300px]">
-            {loading && (
-              <div className="flex flex-col items-center text-muted-foreground">
-                <Icons.loader className="h-12 w-12 animate-spin mb-4" />
-                <p>Processing PDF and generating GIF...</p>
-                <p className="text-sm">Progress: {Math.round(progress * 100)}%</p> 
-                <p className="text-sm">This may take a few moments.</p>
-              </div>
-            )}
-            {!loading && gifUrl && (
-              <div className="w-full max-w-md" data-ai-hint="animation motion">
-                <img
+          <Card className="shadow-lg rounded-xl">
+            <CardHeader>
+              <CardTitle className="text-2xl">2. Preview & Download</CardTitle>
+              <CardDescription>Your generated GIF will appear here.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading && (
+                <div className="flex flex-col items-center text-muted-foreground">
+                  <Icons.loader className="h-12 w-12 animate-spin mb-4" />
+                  <p>Processing PDF and generating GIF...</p>
+                  <p className="text-sm">Progress: {Math.round(progress * 100)}%</p> 
+                  <p className="text-sm">This may take a few moments.</p>
+                </div>
+              )}
+              {!loading && gifUrl && (
+                <div className="w-full max-w-md" data-ai-hint="animation motion">
+                  <img
                     src={gifUrl}
                     alt="Generated GIF Preview"
                     className="rounded-lg border"
                     style={{ maxWidth: '100%', height: 'auto' }}
                     onError={(e) => {
-                         console.error("Error loading GIF preview:", e);
-                         toast({ title: "Error loading preview", description: "The generated GIF might be corrupted or the URL is invalid.", variant: "destructive" });
-                         revokeGifUrl(); 
+                      console.error("Error loading GIF preview:", e);
+                      toast({ title: "Error loading preview", description: "The generated GIF might be corrupted or the URL is invalid.", variant: "destructive" });
+                      revokeGifUrl(); 
                     }}
-                 />
-              </div>
-            )}
-            {!loading && !gifUrl && !pdfFile && (
-              <div className="text-center text-muted-foreground">
-                <Icons.imageOff className="h-16 w-16 mx-auto mb-4" />
-                <p>Upload a PDF and configure settings to generate a GIF.</p>
-              </div>
-            )}
-             {!loading && !gifUrl && pdfFile && (
-              <div className="text-center text-muted-foreground">
-                <Icons.fileImage className="h-16 w-16 mx-auto mb-4" />
-                <p>Click "Convert to GIF" to see your preview.</p>
-              </div>
-            )}
-          </CardContent>
-          {gifUrl && !loading && (
-            <CardFooter className="flex justify-center">
-              <Button variant="default" onClick={handleDownloadGif} className="text-lg py-6 rounded-xl shadow-md">
-                <Icons.download className="mr-2 h-5 w-5" />
-                Download GIF
+                  />
+                </div>
+              )}
+              {!loading && !gifUrl && !pdfFile && (
+                <div className="text-center text-muted-foreground">
+                  <Icons.imageOff className="h-16 w-16 mx-auto mb-4" />
+                  <p>Upload a PDF to generate a GIF.</p>
+                </div>
+              )}
+              {!loading && !gifUrl && pdfFile && (
+                <div className="text-center text-muted-foreground">
+                  <Icons.fileImage className="h-16 w-16 mx-auto mb-4" />
+                  <p>Processing your PDF...</p>
+                </div>
+              )}
+            </CardContent>
+            <CardFooter>
+              <Button 
+                onClick={gifUrl ? handleDownload : () => handleGenerateGif()} 
+                disabled={loading || !pdfFile} 
+                className="w-full text-lg py-6 rounded-xl shadow-md"
+              >
+                {loading ? (
+                  <>
+                    <Icons.loader className="mr-2 h-5 w-5 animate-spin" />
+                    <span>Generating GIF ({Math.round(progress * 100)}%)...</span>
+                  </>
+                ) : gifUrl ? (
+                  <>
+                    <Icons.download className="mr-2 h-5 w-5" />
+                    <span>Download GIF</span>
+                  </>
+                ) : (
+                  <>
+                    <Icons.sparkles className="mr-2 h-5 w-5" />
+                    <span>Convert to GIF</span>
+                  </>
+                )}
               </Button>
             </CardFooter>
-          )}
-        </Card>
+          </Card>
+        </div>
       </div>
        <footer className="w-full text-center mt-12 py-6 border-t">
         <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} PDF2GIF. All rights reserved.</p>

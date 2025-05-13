@@ -225,34 +225,34 @@ function GifGenerator() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8 w-full max-w-4xl min-h-[560px]">
         <div className="flex flex-col space-y-4 sm:space-y-6 h-full min-h-[560px]">
-          <Card className="shadow-2xl rounded-xl w-full max-w-full flex flex-col justify-center overflow-hidden box-border bg-red-600 min-h-[110px] max-h-[110px]">
+          <Card className="shadow-2xl rounded-xl w-full max-w-full flex flex-col justify-center overflow-hidden box-border bg-red-600 min-h-[90px] max-h-[90px] p-3">
             <Label htmlFor="pdf-upload" className="w-full cursor-pointer h-full flex flex-col justify-center">
-              <div className="flex items-center justify-between w-full px-4 py-4 h-full">
-                <span className="text-white font-semibold text-base sm:text-lg">Choose Files</span>
-                <div className="flex items-center space-x-4">
-                  <FolderSearch className="w-6 h-6 text-white opacity-90" />
-                  <span className="w-6 h-6">{DropboxIcon()}</span>
-                  <span className="w-6 h-6">{GoogleDriveIcon()}</span>
+              <div className="flex items-center justify-between w-full px-2 py-2 h-full">
+                <span className="text-white font-semibold text-base">Choose Files</span>
+                <div className="flex items-center space-x-2">
+                  <FolderSearch className="w-5 h-5 text-white opacity-90" />
+                  <span className="w-5 h-5">{DropboxIcon()}</span>
+                  <span className="w-5 h-5">{GoogleDriveIcon()}</span>
                 </div>
               </div>
               <Input id="pdf-upload" type="file" accept="application/pdf" className="hidden" onChange={handleFileChange} />
-              <div className="w-full px-4 pb-1 pt-1">
+              <div className="w-full px-2 pb-1 pt-1">
                 <p className="text-xs text-white/80 flex items-center">
                   <span className="mr-1">🔒</span> Drop files here. 50 MB maximum file size
                 </p>
               </div>
             </Label>
           </Card>
-          <Card className="shadow-2xl rounded-xl w-full max-w-full min-h-[210px] max-h-[210px] flex flex-col justify-center bg-white dark:bg-black p-4 sm:p-6">
-            <CardHeader className="p-0 pb-2">
-              <CardTitle className="text-lg sm:text-xl">2. Configure GIF</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">Adjust settings for your output GIF.</CardDescription>
+          <Card className="shadow-2xl rounded-xl w-full max-w-full min-h-[160px] max-h-[160px] flex flex-col justify-center bg-white dark:bg-black p-3">
+            <CardHeader className="p-0 pb-1">
+              <CardTitle className="text-base">2. Configure GIF</CardTitle>
+              <CardDescription className="text-xs">Adjust settings for your output GIF.</CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-3 sm:gap-4 flex-1 flex flex-col justify-center p-0">
-              <div className="space-y-2">
+            <CardContent className="grid gap-2 flex-1 flex flex-col justify-center p-0">
+              <div className="space-y-1">
                 <div className="flex justify-between items-center">
-                  <Label htmlFor="frame-rate">Frame Rate</Label>
-                  <span className="text-xs sm:text-sm text-muted-foreground">{gifConfig.frameRate} FPS</span>
+                  <Label htmlFor="frame-rate" className="text-sm">Frame Rate</Label>
+                  <span className="text-xs text-muted-foreground">{gifConfig.frameRate} FPS</span>
                 </div>
                 <Slider
                   id="frame-rate"
@@ -262,12 +262,13 @@ function GifGenerator() {
                   step={1}
                   onValueChange={handleFrameRateChange}
                   aria-label="Frame Rate"
+                  className="h-2"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="resolution">Resolution</Label>
+              <div className="space-y-1">
+                <Label htmlFor="resolution" className="text-sm">Resolution</Label>
                 <Select onValueChange={handleResolutionChange} defaultValue={resolution}>
-                  <SelectTrigger id="resolution" aria-label="Resolution">
+                  <SelectTrigger id="resolution" aria-label="Resolution" className="h-8 text-sm">
                     <SelectValue placeholder="Select resolution" />
                   </SelectTrigger>
                   <SelectContent>
@@ -284,31 +285,32 @@ function GifGenerator() {
                   {resolution.includes('xauto') ? `Width set, height will adjust.` : `Match PDF page size.`}
                 </p>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="page-range">Page Range</Label>
+              <div className="space-y-1">
+                <Label htmlFor="page-range" className="text-sm">Page Range</Label>
                 <Input
                   id="page-range"
                   type="text"
                   placeholder="e.g. 1-3,5,7"
                   value={gifConfig.pageRange}
                   onChange={e => setGifConfig({ ...gifConfig, pageRange: e.target.value })}
-                  className="w-full"
+                  className="w-full h-8 text-sm"
                 />
                 <p className="text-xs text-muted-foreground">Enter page numbers or ranges (e.g. 1-3,5,7). Leave blank for all pages.</p>
               </div>
               <div className="flex items-center justify-between">
-                <Label htmlFor="looping">Loop GIF</Label>
+                <Label htmlFor="looping" className="text-sm">Loop GIF</Label>
                 <Switch
                   id="looping"
                   checked={gifConfig.looping}
                   onCheckedChange={handleLoopingChange}
                   aria-label="Loop GIF"
+                  className="scale-90"
                 />
               </div>
             </CardContent>
           </Card>
         </div>
-        <Card className="shadow-2xl rounded-xl h-full flex flex-col justify-between w-full max-w-full min-h-[320px] max-h-[320px] bg-white dark:bg-black p-4 sm:p-6">
+        <Card className="shadow-2xl rounded-xl h-full flex flex-col justify-between w-full max-w-full min-h-[210px] max-h-[210px] bg-white dark:bg-black p-3">
           <CardHeader>
             <CardTitle className="text-xl sm:text-2xl">3. Preview & Download</CardTitle>
             <CardDescription className="text-xs sm:text-base">Your generated GIF will appear here.</CardDescription>

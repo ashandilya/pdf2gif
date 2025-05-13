@@ -195,33 +195,33 @@ function GifGenerator() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-start min-h-screen bg-background p-4 md:p-8">
-      <header className="w-full max-w-4xl flex flex-col items-center py-6 mb-8">
-        <h1 className="text-5xl font-bold text-primary text-center mb-2">PDF2GIF</h1>
+    <div className="flex flex-col items-center justify-start min-h-screen bg-background p-2 sm:p-4 md:p-8">
+      <header className="w-full max-w-4xl flex flex-col items-center py-4 sm:py-6 mb-4 sm:mb-8">
+        <h1 className="text-3xl sm:text-5xl font-bold text-primary text-center mb-2">PDF2GIF</h1>
         <div className="flex justify-end w-full mb-2">
           <Button variant="ghost" size="icon" onClick={toggleTheme}>
             {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
           </Button>
         </div>
-        <p className="text-center text-muted-foreground mt-2">Easily convert your PDF files into animated GIFs</p>
-        <p className="text-center text-muted-foreground mt-2">
+        <p className="text-center text-muted-foreground mt-2 text-sm sm:text-base">Easily convert your PDF files into animated GIFs</p>
+        <p className="text-center text-muted-foreground mt-2 text-xs sm:text-base">
           Know the person behind this? <a href="https://www.linkedin.com/in/ashandilya64/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Connect on LinkedIn</a>
         </p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
-        <div className="space-y-6">
-          <Card className="shadow-lg rounded-xl" style={{ minHeight: '220px', maxHeight: '220px' }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8 w-full max-w-4xl">
+        <div className="space-y-4 sm:space-y-6">
+          <Card className="shadow-lg rounded-xl w-full max-w-full min-h-[180px] max-h-[220px] flex flex-col justify-between">
             <CardHeader>
-              <CardTitle className="text-2xl">1. Upload PDF</CardTitle>
-              <CardDescription>Select a PDF file (max {MAX_PDF_SIZE_BYTES / 1024 / 1024}MB) from your computer.</CardDescription>
+              <CardTitle className="text-xl sm:text-2xl">1. Upload PDF</CardTitle>
+              <CardDescription className="text-xs sm:text-base">Select a PDF file (max {MAX_PDF_SIZE_BYTES / 1024 / 1024}MB) from your computer.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex flex-col items-center space-y-4">
                 <Label htmlFor="pdf-upload" className="w-full">
-                  <div className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors">
-                    <Icons.fileUp className="w-10 h-10 text-muted-foreground mb-2" />
-                    <span className="text-sm text-muted-foreground truncate max-w-[90%] block">
+                  <div className="flex flex-col items-center justify-center w-full h-24 sm:h-32 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors">
+                    <Icons.fileUp className="w-8 h-8 sm:w-10 sm:h-10 text-muted-foreground mb-2" />
+                    <span className="text-xs sm:text-sm text-muted-foreground truncate w-full max-w-full block text-center">
                       {pdfFile ? pdfFile.name : "Click or drag PDF here"}
                     </span>
                   </div>
@@ -231,22 +231,22 @@ function GifGenerator() {
               </div>
             </CardContent>
             {pdfFile && (
-               <CardFooter className="text-xs text-muted-foreground truncate max-w-[90%] block">
-                 Selected: <span className="truncate inline-block align-bottom max-w-[80%]">{pdfFile.name}</span> ({(pdfFile.size / 1024 / 1024).toFixed(2)} MB)
+               <CardFooter className="text-xs text-muted-foreground truncate w-full max-w-full block">
+                 Selected: <span className="truncate inline-block align-bottom max-w-[80vw] md:max-w-[200px] lg:max-w-[300px]">{pdfFile.name}</span> ({(pdfFile.size / 1024 / 1024).toFixed(2)} MB)
                </CardFooter>
             )}
           </Card>
 
-          <Card className="shadow-lg rounded-xl">
+          <Card className="shadow-lg rounded-xl w-full max-w-full">
             <CardHeader>
-              <CardTitle className="text-2xl">2. Configure GIF</CardTitle>
-              <CardDescription>Adjust settings for your output GIF.</CardDescription>
+              <CardTitle className="text-xl sm:text-2xl">2. Configure GIF</CardTitle>
+              <CardDescription className="text-xs sm:text-base">Adjust settings for your output GIF.</CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-6">
+            <CardContent className="grid gap-4 sm:gap-6">
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <Label htmlFor="frame-rate">Frame Rate</Label>
-                  <span className="text-sm text-muted-foreground">{gifConfig.frameRate} FPS</span>
+                  <span className="text-xs sm:text-sm text-muted-foreground">{gifConfig.frameRate} FPS</span>
                 </div>
                 <Slider
                   id="frame-rate"
@@ -293,27 +293,27 @@ function GifGenerator() {
           </Card>
         </div>
 
-        <Card className="shadow-lg rounded-xl h-full flex flex-col justify-between" style={{ minHeight: '600px', maxHeight: '600px' }}>
+        <Card className="shadow-lg rounded-xl h-full flex flex-col justify-between w-full max-w-full min-h-[340px] sm:min-h-[600px] max-h-[600px]">
           <CardHeader>
-            <CardTitle className="text-2xl">3. Preview & Download</CardTitle>
-            <CardDescription>Your generated GIF will appear here.</CardDescription>
+            <CardTitle className="text-xl sm:text-2xl">3. Preview & Download</CardTitle>
+            <CardDescription className="text-xs sm:text-base">Your generated GIF will appear here.</CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center flex-1" style={{ minHeight: '400px', maxHeight: '400px' }}>
+          <CardContent className="flex flex-col items-center justify-center flex-1 w-full max-w-full" style={{ minHeight: '200px', maxHeight: '400px' }}>
             {loading && (
               <div className="flex flex-col items-center text-muted-foreground">
-                <Icons.loader className="h-12 w-12 animate-spin mb-4" />
-                <p>Processing PDF and generating GIF...</p>
-                <p className="text-sm">Progress: {Math.round(progress * 100)}%</p> 
-                <p className="text-sm">This may take a few moments.</p>
+                <Icons.loader className="h-10 w-10 sm:h-12 sm:w-12 animate-spin mb-4" />
+                <p className="text-xs sm:text-base">Processing PDF and generating GIF...</p>
+                <p className="text-xs sm:text-sm">Progress: {Math.round(progress * 100)}%</p> 
+                <p className="text-xs sm:text-sm">This may take a few moments.</p>
               </div>
             )}
             {!loading && gifUrl && (
-              <div className="w-full h-full flex items-center justify-center" style={{ minHeight: '300px', maxHeight: '350px' }}>
+              <div className="w-full h-full flex items-center justify-center overflow-hidden" style={{ minHeight: '120px', maxHeight: '350px' }}>
                 <img
                   src={gifUrl}
                   alt="Generated GIF Preview"
-                  className="rounded-lg border object-contain"
-                  style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: '100%' }}
+                  className="rounded-lg border object-contain w-full h-full max-h-full max-w-full"
+                  style={{ maxWidth: '100%', maxHeight: '100%' }}
                   onError={(e) => {
                     console.error("Error loading GIF preview:", e);
                     toast({ title: "Error loading preview", description: "The generated GIF might be corrupted or the URL is invalid.", variant: "destructive" });
@@ -324,14 +324,14 @@ function GifGenerator() {
             )}
             {!loading && !gifUrl && !pdfFile && (
               <div className="text-center text-muted-foreground">
-                <Icons.imageOff className="h-16 w-16 mx-auto mb-4" />
-                <p>Upload a PDF to generate a GIF.</p>
+                <Icons.imageOff className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-4" />
+                <p className="text-xs sm:text-base">Upload a PDF to generate a GIF.</p>
               </div>
             )}
             {!loading && !gifUrl && pdfFile && (
               <div className="text-center text-muted-foreground">
-                <Icons.fileImage className="h-16 w-16 mx-auto mb-4" />
-                <p>Processing your PDF...</p>
+                <Icons.fileImage className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-4" />
+                <p className="text-xs sm:text-base">Processing your PDF...</p>
               </div>
             )}
           </CardContent>
@@ -339,7 +339,7 @@ function GifGenerator() {
             <Button 
               onClick={gifUrl ? handleDownload : () => handleGenerateGif()} 
               disabled={loading || !pdfFile} 
-              className="w-full text-lg py-6 rounded-xl shadow-md"
+              className="w-full text-base sm:text-lg py-4 sm:py-6 rounded-xl shadow-md"
             >
               {loading ? (
                 <>
@@ -361,8 +361,8 @@ function GifGenerator() {
           </CardFooter>
         </Card>
       </div>
-      <footer className="w-full max-w-4xl text-center mt-12 py-6 border-t">
-        <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} PDF2GIF. All rights reserved.</p>
+      <footer className="w-full max-w-4xl text-center mt-8 sm:mt-12 py-4 sm:py-6 border-t">
+        <p className="text-xs sm:text-sm text-muted-foreground">&copy; {new Date().getFullYear()} PDF2GIF. All rights reserved.</p>
       </footer>
     </div>
   );

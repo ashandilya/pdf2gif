@@ -10,8 +10,8 @@ import * as pdfjsLib from 'pdfjs-dist';
 import GIFEncoder from 'gif-encoder-2';
 
 let pdfjsWorkerSrcConfigured = false;
-const PDF_LOAD_TIMEOUT = 30000; // 30 seconds // Keep timeout, but acknowledge it might relate to worker/PDF complexity
-const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+const PDF_LOAD_TIMEOUT = 30000; // 30 seconds
+const MAX_PDF_SIZE_BYTES = 40 * 1024 * 1024; // 40MB
 
 async function ensurePdfJsWorkerConfigured(): Promise<void> {
   if (typeof window === 'undefined') {
@@ -83,7 +83,6 @@ export async function generateGifFromPdf(
   await ensurePdfJsWorkerConfigured();
 
   if (!pdfjsLib || !pdfjsLib.getDocument) {
-    // This should not happen if ensurePdfJsWorkerConfigured resolved.
     throw new Error("pdf.js library has not been loaded correctly.");
   }
 
@@ -95,15 +94,13 @@ export async function generateGifFromPdf(
   onProgress?.(0.05);
 
   try {
-    // For pdfjs-dist v3.x, getDocument takes an object or a string/URL.
-    // The structure `{ data: pdfBytes }` is standard.
     const loadTask = pdfjsLib.getDocument({ data: pdfBytes });
     const loadPdfPromise = loadTask.promise;
     
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => {
-        if (loadTask.destroy) { // Check if destroy method exists on task for cleanup
-            loadTask.destroy().catch(destroyError => console.warn("Error destroying loadTask on timeout:", destroyError));
+        if (loadTask.destroy) {
+          loadTask.destroy().catch(destroyError => console.warn("Error destroying loadTask on timeout:", destroyError));
         }
         reject(new Error(`PDF loading timed out after ${PDF_LOAD_TIMEOUT / 1000} seconds. This might be due to a very large/complex PDF, an issue with the PDF processing worker, or an incompatible PDF version.`));
       }, PDF_LOAD_TIMEOUT)
@@ -135,55 +132,52 @@ export async function generateGifFromPdf(
   let gifWidth: number = 0; 
   let gifHeight: number = 0;
 
-  const firstPageForDimensions = await pdfDoc.getPage(1);
-  const firstPageViewport = firstPageForDimensions.getViewport({ scale: 1.0 });
+  try {
+    const firstPageForDimensions = await pdfDoc.getPage(1);
+    const firstPageViewport = firstPageForDimensions.getViewport({ scale: 1.0 });
 
-  if (config.resolution !== 'original' && config.resolution.includes('xauto')) {
-    targetWidth = parseInt(config.resolution.split('xauto')[0], 10);
-    if (isNaN(targetWidth) || targetWidth <= 0) {
-      console.warn(`Invalid target width in resolution: ${config.resolution}. Using original width.`);
+    if (config.resolution !== 'original' && config.resolution.includes('xauto')) {
+      targetWidth = parseInt(config.resolution.split('xauto')[0], 10);
+      if (isNaN(targetWidth) || targetWidth <= 0) {
+        console.warn(`Invalid target width in resolution: ${config.resolution}. Using original width.`);
+        gifWidth = Math.max(1, Math.floor(firstPageViewport.width));
+        gifHeight = Math.max(1, Math.floor(firstPageViewport.height));
+      } else {
+        const scale = targetWidth / firstPageViewport.width;
+        gifWidth = targetWidth;
+        gifHeight = Math.max(1, Math.floor(firstPageViewport.height * scale));
+      }
+    } else { 
       gifWidth = Math.max(1, Math.floor(firstPageViewport.width));
       gifHeight = Math.max(1, Math.floor(firstPageViewport.height));
-    } else {
-      const scale = targetWidth / firstPageViewport.width;
-      gifWidth = targetWidth;
-      gifHeight = Math.max(1, Math.floor(firstPageViewport.height * scale));
     }
-  } else { 
-    gifWidth = Math.max(1, Math.floor(firstPageViewport.width));
-    gifHeight = Math.max(1, Math.floor(firstPageViewport.height));
-  }
-  // pdfjs-dist v3.x pages don't have a cleanup method. They are cleaned up when the document is destroyed.
-  // firstPageForDimensions.cleanup(); // Remove this line for v3.x
-  console.log(`Final GIF dimensions set to: ${gifWidth}x${gifHeight}`);
+    console.log(`Final GIF dimensions set to: ${gifWidth}x${gifHeight}`);
 
-  const encoder = new GIFEncoder(gifWidth, gifHeight, 'octree', true);
-  encoder.start();
-  encoder.setRepeat(config.looping ? 0 : -1); 
-  const frameDelay = Math.max(20, Math.round(1000 / config.frameRate));
-  encoder.setDelay(frameDelay);
-  encoder.setQuality(10); 
+    const encoder = new GIFEncoder(gifWidth, gifHeight, 'octree', true);
+    encoder.start();
+    encoder.setRepeat(config.looping ? 0 : -1); 
+    const frameDelay = Math.max(20, Math.round(1000 / config.frameRate));
+    encoder.setDelay(frameDelay);
+    encoder.setQuality(10); 
 
-  console.log(`GIFEncoder initialized. Frame rate: ${config.frameRate} FPS, Delay: ${frameDelay}ms.`);
+    console.log(`GIFEncoder initialized. Frame rate: ${config.frameRate} FPS, Delay: ${frameDelay}ms.`);
 
-  const canvas = document.createElement('canvas');
-  const context = canvas.getContext('2d', { willReadFrequently: true }); // willReadFrequently for performance
-  if (!context) {
-    if (pdfDoc && typeof pdfDoc.destroy === 'function') await pdfDoc.destroy();
-    throw new Error('Could not get 2D rendering context for canvas.');
-  }
-  
-  canvas.width = gifWidth;
-  canvas.height = gifHeight;
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context) {
+      throw new Error('Could not get 2D rendering context for canvas.');
+    }
+    
+    canvas.width = gifWidth;
+    canvas.height = gifHeight;
 
-  try {
     for (let i = 1; i <= numPages; i++) {
       const pageProgressStart = 0.1 + (0.8 * (i - 1) / numPages);
       const pageProgressEnd = 0.1 + (0.8 * i / numPages);
       onProgress?.(pageProgressStart);
 
       console.log(`Processing page ${i} of ${numPages}...`);
-      const page: pdfjsLib.PDFPageProxy = await pdfDoc.getPage(i);
+      const page = await pdfDoc.getPage(i);
       const originalPageViewport = page.getViewport({ scale: 1.0 });
 
       const scaleToFit = Math.min(gifWidth / originalPageViewport.width, gifHeight / originalPageViewport.height);
@@ -194,13 +188,13 @@ export async function generateGifFromPdf(
       pageCanvas.height = Math.max(1, Math.floor(scaledViewport.height));
       const pageContext = pageCanvas.getContext('2d');
       if (!pageContext) {
-          throw new Error(`Could not get 2D context for page ${i} canvas.`);
+        throw new Error(`Could not get 2D context for page ${i} canvas.`);
       }
       
-      const renderContext: pdfjsLib.RenderParameters = { // Type from pdfjsLib
+      const renderContext = {
         canvasContext: pageContext,
         viewport: scaledViewport,
-      };
+      } as const;
 
       console.log(`Rendering page ${i} to temp canvas (${pageCanvas.width}x${pageCanvas.height})...`);
       await page.render(renderContext).promise;
@@ -218,28 +212,26 @@ export async function generateGifFromPdf(
       encoder.addFrame(context);
       console.log(`Frame ${i} added.`);
       onProgress?.(pageProgressEnd);
-
-      // page.cleanup(); // Remove for v3.x
     }
-  } catch (renderError) {
-    console.error("Error during page rendering or GIF frame adding loop:", renderError);
+
+    console.log("Cleaning up PDF document resources...");
+    if (pdfDoc && typeof pdfDoc.destroy === 'function') await pdfDoc.destroy();
+    console.log("PDF document cleanup complete.");
+    onProgress?.(0.95);
+
+    console.log("Finalizing GIF...");
+    encoder.finish();
+    const gifBuffer = encoder.out.getData();
+    console.log(`GIF generated successfully. Size: ${(gifBuffer.length / 1024 / 1024).toFixed(2)} MB`);
+    onProgress?.(1.0);
+
+    return new Blob([gifBuffer], { type: 'image/gif' });
+  } catch (error) {
+    console.error("Error during GIF generation:", error);
     if (pdfDoc && typeof pdfDoc.destroy === 'function') {
-      await pdfDoc.destroy().catch(e => console.error("Error destroying PDF doc after render error:", e));
+      await pdfDoc.destroy().catch(e => console.error("Error destroying PDF doc after error:", e));
     }
-    const friendlyMessage = renderError instanceof Error ? renderError.message : String(renderError);
-    throw new Error(`Failed during PDF page processing or GIF encoding: ${friendlyMessage}`);
+    const friendlyMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to generate GIF: ${friendlyMessage}`);
   }
-
-  console.log("Cleaning up PDF document resources...");
-  if (pdfDoc && typeof pdfDoc.destroy === 'function') await pdfDoc.destroy();
-  console.log("PDF document cleanup complete.");
-  onProgress?.(0.95);
-
-  console.log("Finalizing GIF...");
-  encoder.finish();
-  const gifBuffer = encoder.out.getData();
-  console.log(`GIF generated successfully. Size: ${(gifBuffer.length / 1024 / 1024).toFixed(2)} MB`);
-  onProgress?.(1.0);
-
-  return new Blob([gifBuffer], { type: 'image/gif' });
 }

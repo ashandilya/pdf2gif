@@ -33,38 +33,20 @@ function ensureLibrariesLoaded(): Promise<void> {
 
     // Configure PDF.js Worker (only once)
     if (!pdfjsWorkerSrcConfigured) {
-      fetch('/pdf.worker.js')
-        .then(response => {
-          if (!response.ok) {
-            const message = `pdf.worker.js not found or inaccessible (status: ${response.status}) at /public/pdf.worker.js. PDF processing will fail. Please ensure the correct worker file from 'node_modules/pdfjs-dist/build/pdf.worker.js' is placed in the public directory.`;
-            console.error(message);
-            return reject(new Error(message)); 
-          }
-          return response.text(); 
-        })
-        .then(workerScriptText => {
-          if (workerScriptText.includes("PLEASE COPY THE ACTUAL WORKER FILE HERE") || workerScriptText.includes("This file is a placeholder")) {
-            const message = "Placeholder pdf.worker.js detected. PDF processing will fail. Please replace it with the actual file from 'node_modules/pdfjs-dist/build/pdf.worker.js'.";
-            console.error(message);
-            return reject(new Error(message));
-          }
-          
-          try {
-            (pdfjsLib.GlobalWorkerOptions as PDFWorkerParameters).workerSrc = `/pdf.worker.js`;
-            pdfjsWorkerSrcConfigured = true;
-            pdfWorkerPromiseResolved = true;
-            console.log("PDF.js worker source configured with /pdf.worker.js.");
-          } catch (e) {
-            console.error("Error setting pdfjs workerSrc:", e);
-            return reject(new Error("Failed to configure PDF.js worker."));
-          }
-          checkCompletion();
-        })
-        .catch(err => {
-          console.error("Error during pdf.worker.js verification or setup:", err);
-          const detailedMessage = err instanceof Error ? err.message : String(err);
-          return reject(new Error(`Failed to initialize PDF worker: ${detailedMessage}. Please ensure /public/pdf.worker.js is correct and accessible.`));
-        });
+      try {
+        const workerVersion = '4.3.136'; // Match package.json version for pdfjs-dist
+        const workerUrl = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${workerVersion}/build/pdf.worker.min.js`;
+        (pdfjsLib.GlobalWorkerOptions as PDFWorkerParameters).workerSrc = workerUrl;
+        pdfjsWorkerSrcConfigured = true;
+        pdfWorkerPromiseResolved = true;
+        console.log(`PDF.js worker source configured with CDN: ${workerUrl}`);
+      } catch (e) {
+        console.error("Error setting pdfjs workerSrc from CDN:", e);
+        // Explicitly set to false on error, rejection will be handled by Promise.all or similar
+        pdfWorkerPromiseResolved = false; 
+        return reject(new Error("Failed to configure PDF.js worker from CDN."));
+      }
+      checkCompletion();
     } else {
         pdfWorkerPromiseResolved = true; // Already configured
         checkCompletion();
@@ -152,7 +134,7 @@ export async function generateGifFromPdf(
   try {
     const loadPdfPromise = pdfjsLib.getDocument({ data: pdfBytes }).promise;
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`PDF loading timed out after ${PDF_LOAD_TIMEOUT / 1000} seconds. This might be due to a very large/complex PDF, or an issue with the PDF processing worker (pdf.worker.js).`)), PDF_LOAD_TIMEOUT)
+      setTimeout(() => reject(new Error(`PDF loading timed out after ${PDF_LOAD_TIMEOUT / 1000} seconds. This might be due to a very large/complex PDF, or an issue with the PDF processing worker.`)), PDF_LOAD_TIMEOUT)
     );
     
     pdfDoc = await Promise.race([loadPdfPromise, timeoutPromise]);
@@ -170,7 +152,7 @@ export async function generateGifFromPdf(
       } else if (error.message.includes('PasswordException')) {
         friendlyMessage = 'PDF file is password protected.';
       } else if (error.message.includes('workerSrc') || error.message.includes('Worker was not found') || error.message.includes('worker')) {
-        friendlyMessage = 'PDF worker script failed to load or is misconfigured. Ensure /public/pdf.worker.js is the correct file from node_modules/pdfjs-dist/build/pdf.worker.js and is accessible.';
+        friendlyMessage = 'PDF worker script failed to load or is misconfigured. Check CDN link or network connectivity.';
       } else if (error.message.includes("Unexpected server response (0) while retrieving PDF")) {
          friendlyMessage = 'Could not retrieve PDF data (Network error or invalid source).';
       } else {
@@ -219,7 +201,7 @@ export async function generateGifFromPdf(
   const gifInstance = new GIF({
     workers: Math.max(1, navigator.hardwareConcurrency ? Math.floor(navigator.hardwareConcurrency / 2) : 2), 
     quality: 10, 
-    workerScript: '/gif.worker.js', 
+    workerScript: '/gif.worker.js', // gif.js worker is still loaded locally
     repeat: config.looping ? 0 : -1, 
     background: '#FFFFFF',
   });

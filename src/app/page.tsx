@@ -217,8 +217,8 @@ function GifGenerator() {
         </p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8 w-full max-w-4xl">
-        <div className="space-y-4 sm:space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8 w-full max-w-4xl min-h-[560px]">
+        <div className="flex flex-col space-y-4 sm:space-y-6 h-full min-h-[560px]">
           <Card className="shadow-2xl rounded-xl w-full max-w-full flex flex-col justify-start overflow-hidden box-border bg-red-600 min-h-[120px] max-h-[120px]">
             <Label htmlFor="pdf-upload" className="w-full cursor-pointer">
               <div className="flex items-center justify-between w-full px-6 py-6">
@@ -237,13 +237,12 @@ function GifGenerator() {
               </p>
             </div>
           </Card>
-
-          <Card className="shadow-2xl rounded-xl w-full max-w-full min-h-[420px] max-h-[420px] flex flex-col justify-between dark:bg-gray-800">
+          <Card className="shadow-2xl rounded-xl w-full max-w-full min-h-[420px] max-h-[420px] flex flex-col justify-center dark:bg-black bg-black">
             <CardHeader>
               <CardTitle className="text-xl sm:text-2xl">2. Configure GIF</CardTitle>
               <CardDescription className="text-xs sm:text-base">Adjust settings for your output GIF.</CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-4 sm:gap-6">
+            <CardContent className="grid gap-4 sm:gap-6 flex-1 flex flex-col justify-center">
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <Label htmlFor="frame-rate">Frame Rate</Label>
@@ -293,8 +292,7 @@ function GifGenerator() {
             </CardContent>
           </Card>
         </div>
-
-        <Card className="shadow-2xl rounded-xl h-full flex flex-col justify-between w-full max-w-full min-h-[420px] max-h-[420px]">
+        <Card className="shadow-2xl rounded-xl h-full flex flex-col justify-between w-full max-w-full min-h-[560px] max-h-[560px] dark:bg-black bg-black">
           <CardHeader>
             <CardTitle className="text-xl sm:text-2xl">3. Preview & Download</CardTitle>
             <CardDescription className="text-xs sm:text-base">Your generated GIF will appear here.</CardDescription>

@@ -297,7 +297,7 @@ function GifGenerator() {
         </div>
 
         <footer className="mt-12 text-center text-sm text-muted-foreground">
-          <p>Created with ❤️ by <a href="https://www.linkedin.com/in/ashandilya64/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Ashan Dilya</a></p>
+          <p>Created with ❤️ by <a href="https://www.linkedin.com/in/ashandilya64/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Anshu Shandilya</a></p>
           <p className="mt-2">&copy; {new Date().getFullYear()} PDF2GIF. All rights reserved.</p>
         </footer>
       </div>

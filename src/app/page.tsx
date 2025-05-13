@@ -13,7 +13,7 @@ import { Icons } from "@/components/icons";
 import { SelectItem, SelectTrigger, SelectValue, SelectContent, SelectGroup, Select, SelectLabel } from "@/components/ui/select";
 import { Moon, Sun, FolderSearch, Upload, Image, Settings, Download } from "lucide-react";
 
-const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+const MAX_PDF_SIZE_BYTES = 40 * 1024 * 1024; // 40MB
 
 // Extend GifConfig to include pageRange
 interface GifConfig extends OriginalGifConfig {
@@ -74,7 +74,7 @@ function GifGenerator() {
       if (file.size > MAX_PDF_SIZE_BYTES) {
         toast({
           title: "File too large",
-          description: "Please upload a PDF file smaller than 10MB",
+          description: "Please upload a PDF file smaller than 40MB",
           variant: "destructive",
         });
         return;
@@ -182,7 +182,7 @@ function GifGenerator() {
                   <Upload className="h-12 w-12 mx-auto text-muted-foreground group-hover:text-primary transition-colors duration-300" />
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Click to upload or drag and drop</p>
-                    <p className="text-xs text-muted-foreground">PDF files up to 10MB</p>
+                    <p className="text-xs text-muted-foreground">PDF files up to 40MB</p>
                   </div>
                 </div>
               </div>

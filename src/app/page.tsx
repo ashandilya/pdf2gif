@@ -33,6 +33,7 @@ function GifGenerator() {
     frameRate: 10,
     resolution: '500xauto',
     looping: true,
+    pageRange: '',
   });
   const { toast } = useToast();
   const [resolution, setResolution] = useState("500xauto");
@@ -219,7 +220,7 @@ function GifGenerator() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8 w-full max-w-4xl min-h-[560px]">
         <div className="flex flex-col space-y-4 sm:space-y-6 h-full min-h-[560px]">
-          <Card className="shadow-2xl rounded-xl w-full max-w-full flex flex-col justify-start overflow-hidden box-border bg-red-600 min-h-[120px] max-h-[120px]">
+          <Card className="shadow-2xl rounded-xl w-full max-w-full flex flex-col justify-start overflow-hidden box-border bg-white dark:bg-black min-h-[120px] max-h-[120px]">
             <Label htmlFor="pdf-upload" className="w-full cursor-pointer">
               <div className="flex items-center justify-between w-full px-6 py-6">
                 <span className="text-white font-semibold text-lg sm:text-xl">Choose Files</span>
@@ -237,7 +238,7 @@ function GifGenerator() {
               </p>
             </div>
           </Card>
-          <Card className="shadow-2xl rounded-xl w-full max-w-full min-h-[420px] max-h-[420px] flex flex-col justify-center dark:bg-black bg-black">
+          <Card className="shadow-2xl rounded-xl w-full max-w-full min-h-[420px] max-h-[420px] flex flex-col justify-center bg-white dark:bg-black">
             <CardHeader>
               <CardTitle className="text-xl sm:text-2xl">2. Configure GIF</CardTitle>
               <CardDescription className="text-xs sm:text-base">Adjust settings for your output GIF.</CardDescription>
@@ -258,7 +259,6 @@ function GifGenerator() {
                   aria-label="Frame Rate"
                 />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="resolution">Resolution</Label>
                 <Select onValueChange={handleResolutionChange} defaultValue={resolution}>
@@ -275,11 +275,22 @@ function GifGenerator() {
                     </SelectGroup>
                   </SelectContent>
                 </Select>
-                 <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   {resolution.includes('xauto') ? `Width set, height will adjust.` : `Match PDF page size.`}
                 </p>
               </div>
-
+              <div className="space-y-2">
+                <Label htmlFor="page-range">Page Range</Label>
+                <Input
+                  id="page-range"
+                  type="text"
+                  placeholder="e.g. 1-3,5,7"
+                  value={gifConfig.pageRange}
+                  onChange={e => setGifConfig({ ...gifConfig, pageRange: e.target.value })}
+                  className="w-full"
+                />
+                <p className="text-xs text-muted-foreground">Enter page numbers or ranges (e.g. 1-3,5,7). Leave blank for all pages.</p>
+              </div>
               <div className="flex items-center justify-between">
                 <Label htmlFor="looping">Loop GIF</Label>
                 <Switch
@@ -292,7 +303,7 @@ function GifGenerator() {
             </CardContent>
           </Card>
         </div>
-        <Card className="shadow-2xl rounded-xl h-full flex flex-col justify-between w-full max-w-full min-h-[560px] max-h-[560px] dark:bg-black bg-black">
+        <Card className="shadow-2xl rounded-xl h-full flex flex-col justify-between w-full max-w-full min-h-[560px] max-h-[560px] bg-white dark:bg-black">
           <CardHeader>
             <CardTitle className="text-xl sm:text-2xl">3. Preview & Download</CardTitle>
             <CardDescription className="text-xs sm:text-base">Your generated GIF will appear here.</CardDescription>

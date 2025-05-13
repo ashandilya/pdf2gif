@@ -215,126 +215,51 @@ function GifGenerator() {
         </p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8 w-full max-w-4xl" style={{ minHeight: '210px' }}>
-        <div className="flex flex-col space-y-4 sm:space-y-6 h-full" style={{ minHeight: '210px' }}>
-          <Card className="shadow-2xl rounded-xl w-full max-w-full flex flex-col justify-center overflow-hidden box-border bg-red-600 min-h-[90px] max-h-[90px] p-3">
-            <Label htmlFor="pdf-upload" className="w-full cursor-pointer h-full flex flex-col justify-center">
-              <div className="flex items-center justify-between w-full px-2 py-2 h-full">
-                <span className="text-white font-semibold text-base">Choose PDF File</span>
-                <div className="flex items-center">
-                  <FolderSearch className="w-5 h-5 text-white opacity-90" />
-                </div>
-              </div>
-              <Input id="pdf-upload" type="file" accept="application/pdf" className="hidden" onChange={handleFileChange} />
-              <div className="w-full px-2 pb-1 pt-1">
-                <p className="text-xs text-white/80 flex items-center">
-                  <span className="mr-1">🔒</span> Drop files here. 50 MB maximum file size
-                </p>
-              </div>
-            </Label>
-          </Card>
-          <Card className="shadow-2xl rounded-xl w-full max-w-full min-h-[110px] max-h-[110px] flex flex-col justify-center bg-white dark:bg-black p-3">
-            <CardHeader className="p-0 pb-1">
-              <CardTitle className="text-base">2. Configure GIF</CardTitle>
-              <CardDescription className="text-xs">Adjust settings for your output GIF.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-2 flex-1 flex flex-col justify-center p-0">
-              <div className="space-y-1">
-                <div className="flex justify-between items-center">
-                  <Label htmlFor="frame-rate" className="text-sm">Frame Rate</Label>
-                  <span className="text-xs text-muted-foreground">{gifConfig.frameRate} FPS</span>
-                </div>
-                <Slider
-                  id="frame-rate"
-                  defaultValue={[gifConfig.frameRate]}
-                  min={1}
-                  max={30}
-                  step={1}
-                  onValueChange={handleFrameRateChange}
-                  aria-label="Frame Rate"
-                  className="h-2"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="looping" className="text-sm">Loop GIF</Label>
-                <Switch
-                  id="looping"
-                  checked={gifConfig.looping}
-                  onCheckedChange={handleLoopingChange}
-                  aria-label="Loop GIF"
-                  className="scale-90"
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-        <Card className="shadow-2xl rounded-xl h-full flex flex-col justify-between w-full max-w-full bg-white dark:bg-black p-3" style={{ minHeight: '210px', height: '100%' }}>
-          <CardHeader>
-            <CardTitle className="text-xl sm:text-2xl">3. Preview & Download</CardTitle>
-            <CardDescription className="text-xs sm:text-base">Your generated GIF will appear here.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center flex-1 w-full max-w-full" style={{ minHeight: '200px', maxHeight: '400px' }}>
-            {loading && (
-              <div className="flex flex-col items-center text-muted-foreground">
-                <Icons.loader className="h-10 w-10 sm:h-12 sm:w-12 animate-spin mb-4" />
-                <p className="text-xs sm:text-base">Processing PDF and generating GIF...</p>
-                <p className="text-xs sm:text-sm">Progress: {Math.round(progress * 100)}%</p> 
-                <p className="text-xs sm:text-sm">This may take a few moments.</p>
-              </div>
-            )}
-            {!loading && gifUrl && (
-              <div className="w-full h-full flex items-center justify-center overflow-hidden" style={{ minHeight: '120px', maxHeight: '350px' }}>
-                <img
-                  src={gifUrl}
-                  alt="Generated GIF Preview"
-                  className="rounded-lg border object-contain w-full h-full max-h-full max-w-full"
-                  style={{ maxWidth: '100%', maxHeight: '100%' }}
-                  onError={(e) => {
-                    console.error("Error loading GIF preview:", e);
-                    toast({ title: "Error loading preview", description: "The generated GIF might be corrupted or the URL is invalid.", variant: "destructive" });
-                    revokeGifUrl(); 
-                  }}
-                />
-              </div>
-            )}
-            {!loading && !gifUrl && !pdfFile && (
-              <div className="text-center text-muted-foreground">
-                <Icons.imageOff className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-4" />
-                <p className="text-xs sm:text-base">Upload a PDF to generate a GIF.</p>
-              </div>
-            )}
-            {!loading && !gifUrl && pdfFile && (
-              <div className="text-center text-muted-foreground">
-                <Icons.fileImage className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-4" />
-                <p className="text-xs sm:text-base">Processing your PDF...</p>
-              </div>
-            )}
-          </CardContent>
-          <CardFooter>
-            <Button 
-              onClick={gifUrl ? handleDownload : () => handleGenerateGif()} 
-              disabled={loading || !pdfFile} 
-              className="w-full text-base sm:text-lg py-4 sm:py-6 rounded-xl shadow-md"
-            >
-              {loading ? (
-                <>
-                  <Icons.loader className="mr-2 h-5 w-5 animate-spin" />
-                  <span>Generating GIF ({Math.round(progress * 100)}%)...</span>
-                </>
-              ) : gifUrl ? (
-                <>
-                  <Icons.download className="mr-2 h-5 w-5" />
-                  <span>Download GIF</span>
-                </>
-              ) : (
-                <>
-                  <Icons.sparkles className="mr-2 h-5 w-5" />
-                  <span>Convert to GIF</span>
-                </>
-              )}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl mb-3">
+        {/* Choose PDF File Card */}
+        <div className="border rounded p-4 flex items-center justify-center h-[70px] bg-white dark:bg-black">
+          <Label htmlFor="pdf-upload" className="w-full flex items-center justify-center cursor-pointer">
+            <Button type="button" className="text-sm px-4 py-2" asChild>
+              <span>Choose PDF File</span>
             </Button>
-          </CardFooter>
-        </Card>
+            <Input id="pdf-upload" type="file" accept="application/pdf" className="hidden" onChange={handleFileChange} />
+          </Label>
+        </div>
+        {/* Frame Rate & Loop GIF Card */}
+        <div className="border rounded p-4 flex items-center justify-between h-[70px] bg-white dark:bg-black">
+          <span className="text-sm font-medium mr-2">Frame Rate</span>
+          <Slider
+            id="frame-rate"
+            defaultValue={[gifConfig.frameRate]}
+            min={1}
+            max={30}
+            step={1}
+            onValueChange={handleFrameRateChange}
+            aria-label="Frame Rate"
+            className="flex-1 mx-2"
+          />
+          <span className="text-sm font-medium mx-2">Loop GIF</span>
+          <Switch
+            id="looping"
+            checked={gifConfig.looping}
+            onCheckedChange={handleLoopingChange}
+            aria-label="Loop GIF"
+            className="scale-90"
+          />
+        </div>
+      </div>
+      {/* Preview & Download Card */}
+      <div className="border rounded p-4 w-full max-w-2xl min-h-[400px] flex flex-col" style={{ minHeight: '400px' }}>
+        <div>
+          <span className="font-semibold text-sm">Preview & Download</span>
+          <div className="text-xs text-muted-foreground mb-4">Your generated GIF will appear here.</div>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          {!gifUrl && (
+            <span className="text-sm text-center">Upload a PDF to generate a GIF.</span>
+          )}
+          {/* GIF preview will go here if gifUrl exists */}
+        </div>
       </div>
       <footer className="w-full max-w-4xl text-center mt-8 sm:mt-12 py-4 sm:py-6 border-t">
         <p className="text-xs sm:text-sm text-muted-foreground">&copy; {new Date().getFullYear()} PDF2GIF. All rights reserved.</p>

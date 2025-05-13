@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Icons } from "@/components/icons";
 import { SelectItem, SelectTrigger, SelectValue, SelectContent, SelectGroup, Select, SelectLabel } from "@/components/ui/select";
-import { Moon, Sun, FolderSearch } from "lucide-react";
+import { Moon, Sun, FolderSearch, Upload, Image, Settings, Download } from "lucide-react";
 
 const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 
@@ -29,24 +29,43 @@ function GifGenerator() {
   const [resolution, setResolution] = useState('medium');
   const [gifConfig, setGifConfig] = useState<GifConfig>({
     frameRate: 10,
-    resolution: 'medium',
+    resolution: '720xauto', // Default to medium resolution
     looping: true,
   });
 
   const { toast } = useToast();
+
+  // Cleanup function for object URLs
+  const cleanupGifUrl = useCallback(() => {
+    if (gifUrl) {
+      URL.revokeObjectURL(gifUrl);
+      setGifUrl(null);
+    }
+  }, [gifUrl]);
 
   useEffect(() => {
     setIsClient(true);
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark';
     if (savedTheme) {
       setTheme(savedTheme);
+      document.documentElement.classList.remove('light', 'dark');
+      document.documentElement.classList.add(savedTheme);
     }
   }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cleanupGifUrl();
+    };
+  }, [cleanupGifUrl]);
 
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(newTheme);
     localStorage.setItem('theme', newTheme);
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(newTheme);
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,6 +79,7 @@ function GifGenerator() {
         });
         return;
       }
+      cleanupGifUrl(); // Cleanup previous GIF URL
       setPdfFile(file);
       handleGenerateGif(file);
     }
@@ -68,6 +88,7 @@ function GifGenerator() {
   const handleGenerateGif = async (file: File) => {
     try {
       setIsGenerating(true);
+      cleanupGifUrl(); // Cleanup previous GIF URL before generating new one
       const gifBlob = await generateGifFromPdf(file, gifConfig);
       const url = URL.createObjectURL(gifBlob);
       setGifUrl(url);
@@ -79,7 +100,7 @@ function GifGenerator() {
       console.error('Error generating GIF:', error);
       toast({
         title: "Error",
-        description: "Failed to generate GIF. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to generate GIF. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -97,7 +118,13 @@ function GifGenerator() {
 
   const handleResolutionChange = (value: string) => {
     setResolution(value);
-    setGifConfig({ ...gifConfig, resolution: value });
+    // Map resolution values to actual dimensions
+    const resolutionMap: Record<string, string> = {
+      'low': '480xauto',
+      'medium': '720xauto',
+      'high': '1080xauto'
+    };
+    setGifConfig({ ...gifConfig, resolution: resolutionMap[value] });
   }
 
   useEffect(() => {
@@ -152,7 +179,7 @@ function GifGenerator() {
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 />
                 <div className="space-y-4">
-                  <Icons.upload className="h-12 w-12 mx-auto text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+                  <Upload className="h-12 w-12 mx-auto text-muted-foreground group-hover:text-primary transition-colors duration-300" />
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Click to upload or drag and drop</p>
                     <p className="text-xs text-muted-foreground">PDF files up to 10MB</p>
@@ -166,7 +193,7 @@ function GifGenerator() {
           <Card className="hover:shadow-lg transition-all duration-300">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Icons.settings className="h-6 w-6 text-primary" />
+                <Settings className="h-6 w-6 text-primary" />
                 GIF Settings
               </CardTitle>
               <CardDescription>
@@ -223,7 +250,7 @@ function GifGenerator() {
           <Card className="hover:shadow-lg transition-all duration-300">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Icons.image className="h-6 w-6 text-primary" />
+                <Image className="h-6 w-6 text-primary" />
                 Preview
               </CardTitle>
               <CardDescription>
@@ -261,7 +288,7 @@ function GifGenerator() {
                   }}
                   className="gap-2"
                 >
-                  <Icons.download className="h-4 w-4" />
+                  <Download className="h-4 w-4" />
                   Download GIF
                 </Button>
               </CardFooter>

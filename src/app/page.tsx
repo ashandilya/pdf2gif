@@ -190,9 +190,9 @@ function GifGenerator() {
 
   return (
     <div className="flex flex-col items-center justify-start min-h-screen bg-background p-4 md:p-8">
-      <header className="w-full max-w-4xl py-6 mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-5xl font-bold text-center text-primary">PDF2GIF</h1>
+      <header className="w-full max-w-4xl flex flex-col items-center py-6 mb-8">
+        <h1 className="text-5xl font-bold text-primary text-center mb-2">PDF2GIF</h1>
+        <div className="flex justify-end w-full mb-2">
           <Button variant="ghost" size="icon" onClick={toggleTheme}>
             {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
           </Button>
@@ -287,12 +287,12 @@ function GifGenerator() {
           </Card>
         </div>
 
-        <Card className="shadow-lg rounded-xl h-full">
+        <Card className="shadow-lg rounded-xl h-full flex flex-col justify-between" style={{ minHeight: '600px', maxHeight: '600px' }}>
           <CardHeader>
             <CardTitle className="text-2xl">3. Preview & Download</CardTitle>
             <CardDescription>Your generated GIF will appear here.</CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center min-h-[400px]">
+          <CardContent className="flex flex-col items-center justify-center flex-1" style={{ minHeight: '400px', maxHeight: '400px' }}>
             {loading && (
               <div className="flex flex-col items-center text-muted-foreground">
                 <Icons.loader className="h-12 w-12 animate-spin mb-4" />
@@ -302,12 +302,12 @@ function GifGenerator() {
               </div>
             )}
             {!loading && gifUrl && (
-              <div className="w-full max-w-md" data-ai-hint="animation motion">
+              <div className="w-full h-full flex items-center justify-center" style={{ minHeight: '300px', maxHeight: '350px' }}>
                 <img
                   src={gifUrl}
                   alt="Generated GIF Preview"
-                  className="rounded-lg border"
-                  style={{ maxWidth: '100%', height: 'auto' }}
+                  className="rounded-lg border object-contain"
+                  style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: '100%' }}
                   onError={(e) => {
                     console.error("Error loading GIF preview:", e);
                     toast({ title: "Error loading preview", description: "The generated GIF might be corrupted or the URL is invalid.", variant: "destructive" });

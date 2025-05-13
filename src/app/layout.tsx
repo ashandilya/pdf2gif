@@ -1,18 +1,14 @@
 import type { Metadata } from 'next';
-import { Roboto } from 'next/font/google';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import type { ReactNode } from 'react';
 import { Toaster } from "@/components/ui/toaster"; // Import Toaster
 
-const roboto = Roboto({
-  weight: ['400', '500', '700'],
-  subsets: ['latin'],
-  display: 'swap',
-});
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'PDF2GIF',
-  description: 'Convert PDF files to animated GIFs',
+  title: 'PDF2GIF - Convert PDF to Animated GIF',
+  description: 'Easily convert your PDF files into animated GIFs',
 };
 
 export default function RootLayout({
@@ -22,7 +18,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={roboto.className}>
+      <body className={inter.className}>
         {children}
         <Toaster />
       </body>

@@ -19,79 +19,86 @@ function ensureLibrariesLoaded(): Promise<void> {
       return reject(new Error('PDF/GIF generation can only run in the browser.'));
     }
 
+    let pdfWorkerPromiseResolved = false;
+    let gifLibraryPromiseResolved = false;
+
+    function checkCompletion() {
+        if (pdfWorkerPromiseResolved && gifLibraryPromiseResolved) {
+            console.log("PDF.js and gif.js libraries ready.");
+            resolve();
+        } else {
+            console.log(`Library status: PDF worker ready: ${pdfWorkerPromiseResolved}, gif.js ready: ${gifLibraryPromiseResolved}`);
+        }
+    }
+
     // Configure PDF.js Worker (only once)
     if (!pdfjsWorkerSrcConfigured) {
-      try {
-        // IMPORTANT: Ensure 'public/pdf.worker.js' exists and is the correct worker file.
-        // Check if file exists (simple check, might need more robust method in production)
-        fetch('/pdf.worker.js').then(response => {
+      fetch('/pdf.worker.js')
+        .then(response => {
           if (!response.ok) {
-            console.warn("pdf.worker.js not found or accessible at /public/pdf.worker.js. PDF processing might fail.");
-            // Optionally throw error or let pdfjs handle it internally
+            const message = `pdf.worker.js not found or inaccessible (status: ${response.status}) at /public/pdf.worker.js. PDF processing will fail. Please ensure the correct worker file from 'node_modules/pdfjs-dist/build/pdf.worker.js' is placed in the public directory.`;
+            console.error(message);
+            return reject(new Error(message)); 
           }
-          (pdfjsLib.GlobalWorkerOptions as PDFWorkerParameters).workerSrc = `/pdf.worker.js`;
-          pdfjsWorkerSrcConfigured = true;
-          console.log("PDF.js worker source configured.");
+          return response.text(); 
+        })
+        .then(workerScriptText => {
+          if (workerScriptText.includes("PLEASE COPY THE ACTUAL WORKER FILE HERE") || workerScriptText.includes("This file is a placeholder")) {
+            const message = "Placeholder pdf.worker.js detected. PDF processing will fail. Please replace it with the actual file from 'node_modules/pdfjs-dist/build/pdf.worker.js'.";
+            console.error(message);
+            return reject(new Error(message));
+          }
+          
+          try {
+            (pdfjsLib.GlobalWorkerOptions as PDFWorkerParameters).workerSrc = `/pdf.worker.js`;
+            pdfjsWorkerSrcConfigured = true;
+            pdfWorkerPromiseResolved = true;
+            console.log("PDF.js worker source configured with /pdf.worker.js.");
+          } catch (e) {
+            console.error("Error setting pdfjs workerSrc:", e);
+            return reject(new Error("Failed to configure PDF.js worker."));
+          }
           checkCompletion();
-        }).catch(err => {
-          console.error("Failed to fetch pdf.worker.js:", err);
-          // Fallback or error handling - Try setting anyway?
-           try {
-             (pdfjsLib.GlobalWorkerOptions as PDFWorkerParameters).workerSrc = `/pdf.worker.js`;
-             pdfjsWorkerSrcConfigured = true;
-             console.warn("Set PDF.js worker source despite fetch error.");
-             checkCompletion();
-           } catch (e) {
-               console.error("FATAL: Error setting pdfjs workerSrc:", e)
-               return reject(new Error("Failed to configure PDF.js worker."));
-           }
+        })
+        .catch(err => {
+          console.error("Error during pdf.worker.js verification or setup:", err);
+          const detailedMessage = err instanceof Error ? err.message : String(err);
+          return reject(new Error(`Failed to initialize PDF worker: ${detailedMessage}. Please ensure /public/pdf.worker.js is correct and accessible.`));
         });
-      } catch (e) {
-        console.error("Error setting pdfjs workerSrc:", e);
-        return reject(new Error("Failed to configure PDF.js worker."));
-      }
+    } else {
+        pdfWorkerPromiseResolved = true; // Already configured
+        checkCompletion();
     }
 
     // Load gif.js (only once)
     if (!gifjsLoaded && !GIF) {
         console.log("Attempting to load gif.js...");
-        import('gif.js/dist/gif.js') // Ensure correct path to gif.js main file
+        import('gif.js/dist/gif.js') 
             .then(module => {
                 if (module && module.default) {
                     GIF = module.default;
-                    gifjsLoaded = true;
-                    console.log('gif.js loaded successfully.');
                 } else {
-                    console.error("Failed to load gif.js: Default export not found.", module);
-                    GIF = module; // Attempt to use the module directly
-                    if (!GIF) {
-                        return reject(new Error("gif.js module loaded but is empty or invalid."));
-                    }
-                    gifjsLoaded = true; // Mark as loaded even if default wasn't found
-                     console.log('gif.js loaded (without default export).');
+                    // Fallback if default export isn't found, try using the module directly
+                    GIF = module; 
                 }
-                 checkCompletion();
+
+                if (!GIF) {
+                    console.error("gif.js module loaded but GIF constructor is still undefined.");
+                    return reject(new Error("gif.js module loaded but is empty or invalid."));
+                }
+                gifjsLoaded = true;
+                gifLibraryPromiseResolved = true;
+                console.log('gif.js loaded successfully.');
+                checkCompletion();
             }).catch(err => {
                 console.error("Failed to dynamically import gif.js:", err);
                 return reject(new Error("Failed to load GIF library (gif.js)."));
             });
     } else if (gifjsLoaded) {
+         gifLibraryPromiseResolved = true; // Already loaded
          console.log("gif.js already loaded.");
-         checkCompletion(); // Check if PDF worker is also ready
+         checkCompletion();
     }
-
-
-    function checkCompletion() {
-        // Resolve once both are ready (or seem ready)
-        if (pdfjsWorkerSrcConfigured && gifjsLoaded) {
-            console.log("PDF.js and gif.js libraries ready.");
-            resolve();
-        } else {
-             console.log(`Library status: PDF worker configured: ${pdfjsWorkerSrcConfigured}, gif.js loaded: ${gifjsLoaded}`);
-        }
-    }
-     // Initial check if libraries might already be loaded
-     checkCompletion();
   });
 }
 
@@ -108,6 +115,8 @@ export interface GifConfig {
   looping: boolean;
 }
 
+const PDF_LOAD_TIMEOUT = 30000; // 30 seconds
+
 /**
  * Asynchronously generates a GIF from a PDF file on the client-side.
  *
@@ -123,7 +132,7 @@ export async function generateGifFromPdf(
 ): Promise<Blob> {
 
   console.log("generateGifFromPdf called");
-  await ensureLibrariesLoaded(); // Ensure libraries are ready before proceeding
+  await ensureLibrariesLoaded(); 
 
   if (!GIF) {
      console.error("GIF library constructor is null after ensureLibrariesLoaded.");
@@ -137,32 +146,53 @@ export async function generateGifFromPdf(
   const pdfBytes = await pdfFile.arrayBuffer();
   let pdfDoc: PDFDocumentProxy | null = null;
 
+  console.log("Loading PDF document...");
+  onProgress?.(0.05); // Indicate progress for starting PDF load
+
   try {
-     console.log("Loading PDF document...");
-    onProgress?.(0.05); // Indicate progress
-    pdfDoc = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+    const loadPdfPromise = pdfjsLib.getDocument({ data: pdfBytes }).promise;
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`PDF loading timed out after ${PDF_LOAD_TIMEOUT / 1000} seconds. This might be due to a very large/complex PDF, or an issue with the PDF processing worker (pdf.worker.js).`)), PDF_LOAD_TIMEOUT)
+    );
+    
+    pdfDoc = await Promise.race([loadPdfPromise, timeoutPromise]);
+    
     console.log(`PDF document loaded: ${pdfDoc.numPages} pages.`);
-    onProgress?.(0.1); // Indicate progress
+    onProgress?.(0.1); // Indicate progress after PDF load
   } catch (error) {
     console.error("Error loading PDF document:", error);
-     let friendlyMessage = 'Failed to load PDF document.';
-     if (error instanceof Error) {
-        if (error.name === 'InvalidPDFException' || error.message.includes('Invalid PDF')) {
-           friendlyMessage = 'Invalid PDF file provided.';
-        } else if (error.message.includes('PasswordException')) {
-            friendlyMessage = 'PDF file is password protected.';
-        } else if (error.message.includes('workerSrc')) {
-           friendlyMessage = 'PDF worker script failed to load. Check network access to /pdf.worker.js.';
-        } else if (error.message.includes("Unexpected server response (0) while retrieving PDF")) {
-           friendlyMessage = 'Could not retrieve PDF data (Network error or invalid source).'
+    let friendlyMessage = 'Failed to load PDF document.';
+    if (error instanceof Error) {
+      if (error.message.includes("timed out")) {
+        friendlyMessage = error.message;
+      } else if (error.name === 'InvalidPDFException' || error.message.includes('Invalid PDF')) {
+        friendlyMessage = 'Invalid PDF file provided.';
+      } else if (error.message.includes('PasswordException')) {
+        friendlyMessage = 'PDF file is password protected.';
+      } else if (error.message.includes('workerSrc') || error.message.includes('Worker was not found') || error.message.includes('worker')) {
+        friendlyMessage = 'PDF worker script failed to load or is misconfigured. Ensure /public/pdf.worker.js is the correct file from node_modules/pdfjs-dist/build/pdf.worker.js and is accessible.';
+      } else if (error.message.includes("Unexpected server response (0) while retrieving PDF")) {
+         friendlyMessage = 'Could not retrieve PDF data (Network error or invalid source).';
+      } else {
+        friendlyMessage = `Failed to load PDF: ${error.message}`;
+      }
+    } else {
+      friendlyMessage = `Failed to load PDF: ${String(error)}`;
+    }
+
+    if (pdfDoc && typeof pdfDoc.destroy === 'function') {
+        try {
+            await pdfDoc.destroy();
+        } catch (destroyError) {
+            console.warn("Error during pdfDoc.destroy() after a loading error:", destroyError);
         }
-     }
+    }
     throw new Error(friendlyMessage);
   }
 
   const numPages = pdfDoc.numPages;
   if (numPages === 0) {
-    await pdfDoc.destroy();
+    if (pdfDoc && typeof pdfDoc.destroy === 'function') await pdfDoc.destroy();
     throw new Error("PDF file contains no pages.");
   }
 
@@ -170,7 +200,6 @@ export async function generateGifFromPdf(
   let gifWidth: number | undefined = undefined;
   let gifHeight: number | undefined = undefined;
 
-  // Parse resolution config
   if (config.resolution !== 'original' && config.resolution.includes('xauto')) {
     targetWidth = parseInt(config.resolution.split('xauto')[0], 10);
     if (isNaN(targetWidth) || targetWidth <= 0) {
@@ -183,25 +212,22 @@ export async function generateGifFromPdf(
       console.log("Using original PDF page size.");
   } else {
      console.warn(`Malformed resolution: ${config.resolution}. Falling back to 500px width.`);
-     targetWidth = 500; // Fallback
+     targetWidth = 500;
   }
 
-  // Initialize gif.js
-   console.log("Initializing GIF encoder...");
+  console.log("Initializing GIF encoder...");
   const gifInstance = new GIF({
-    workers: Math.max(1, navigator.hardwareConcurrency ? Math.floor(navigator.hardwareConcurrency / 2) : 2), // Use half available cores, min 1, default 2
-    quality: 10, // Pixel sample interval (1-30), lower is better quality but slower. 10 is default.
-    workerScript: '/gif.worker.js', // Path to the gif.js worker script in public folder
-    repeat: config.looping ? 0 : -1, // 0 for loop indefinitely, -1 for no loop
-    background: '#FFFFFF', // Default background color (optional)
-    // width & height will be set based on the first frame
+    workers: Math.max(1, navigator.hardwareConcurrency ? Math.floor(navigator.hardwareConcurrency / 2) : 2), 
+    quality: 10, 
+    workerScript: '/gif.worker.js', 
+    repeat: config.looping ? 0 : -1, 
+    background: '#FFFFFF',
   });
   console.log("GIF encoder initialized.");
 
-  const frameDelay = Math.max(20, Math.round(1000 / config.frameRate)); // Delay in ms, min 20ms (GIF standard)
+  const frameDelay = Math.max(20, Math.round(1000 / config.frameRate)); 
   console.log(`Frame rate: ${config.frameRate} FPS, Delay: ${frameDelay}ms`);
 
-  // --- Page Rendering Loop ---
   try {
     for (let i = 1; i <= numPages; i++) {
       const pageProgressStart = 0.1 + (0.8 * (i - 1) / numPages);
@@ -217,62 +243,48 @@ export async function generateGifFromPdf(
       let renderWidth = originalViewport.width;
       let renderHeight = originalViewport.height;
 
-      // Determine render scale and dimensions
       if (targetWidth) {
         scale = targetWidth / originalViewport.width;
         renderWidth = targetWidth;
         renderHeight = originalViewport.height * scale;
-      } else { // Original size
-        scale = 1.0;
       }
 
-      // Ensure dimensions are positive integers
       renderWidth = Math.max(1, Math.floor(renderWidth));
       renderHeight = Math.max(1, Math.floor(renderHeight));
 
-      // Set GIF dimensions based on the first frame
       if (i === 1) {
         gifWidth = renderWidth;
         gifHeight = renderHeight;
         console.log(`Setting GIF dimensions to: ${gifWidth}x${gifHeight}`);
-        // @ts-ignore - gif.js typings might be incomplete
+        // @ts-ignore 
         gifInstance.options.width = gifWidth;
         // @ts-ignore
         gifInstance.options.height = gifHeight;
       }
 
-      // Create viewport with calculated scale for rendering
       const viewport = page.getViewport({ scale: scale });
-       console.log(`Page ${i} rendering at scale ${scale.toFixed(2)}, viewport: ${viewport.width.toFixed(0)}x${viewport.height.toFixed(0)}`);
+      console.log(`Page ${i} rendering at scale ${scale.toFixed(2)}, viewport: ${viewport.width.toFixed(0)}x${viewport.height.toFixed(0)}`);
 
-      // Create canvas for rendering
       const canvas = document.createElement('canvas');
       const context = canvas.getContext('2d');
       if (!context) {
         throw new Error(`Could not get 2D rendering context for page ${i}.`);
       }
-      // Use viewport dimensions for canvas to avoid potential floating point issues
-       canvas.width = Math.max(1, Math.floor(viewport.width));
-       canvas.height = Math.max(1, Math.floor(viewport.height));
-
+      canvas.width = Math.max(1, Math.floor(viewport.width));
+      canvas.height = Math.max(1, Math.floor(viewport.height));
 
       const renderContext: PDFRenderParams = {
         canvasContext: context,
         viewport: viewport,
-         // Optional: Enhance rendering quality if needed
-        // intent: 'print', // Or 'display' (default)
-        // renderInteractiveForms: false,
       };
 
       console.log(`Rendering page ${i} to canvas...`);
       await page.render(renderContext).promise;
-       onProgress?.(pageProgressStart + (pageProgressEnd - pageProgressStart) * 0.7); // 70% of page progress is rendering
+      onProgress?.(pageProgressStart + (pageProgressEnd - pageProgressStart) * 0.7); 
       console.log(`Page ${i} rendered.`);
 
-      // Add the rendered frame to the GIF
       let frameToAdd: CanvasImageSource = canvas;
 
-      // Resize/fit frame if necessary (if current page size differs from first page size)
       if (gifWidth && gifHeight && (canvas.width !== gifWidth || canvas.height !== gifHeight)) {
         console.warn(`Frame ${i} size (${canvas.width}x${canvas.height}) differs from GIF size (${gifWidth}x${gifHeight}). Resizing/Fitting.`);
         const sizedCanvas = document.createElement('canvas');
@@ -282,10 +294,9 @@ export async function generateGifFromPdf(
         if (!sizedContext) {
            console.error(`Could not get 2D context for resized canvas on frame ${i}. Skipping resize.`);
         } else {
-          sizedContext.fillStyle = '#FFFFFF'; // Ensure consistent background
+          sizedContext.fillStyle = '#FFFFFF'; 
           sizedContext.fillRect(0, 0, gifWidth, gifHeight);
 
-          // Draw the rendered page onto the target-sized canvas (fit aspect ratio, center)
           const drawRatio = Math.min(gifWidth / canvas.width, gifHeight / canvas.height);
           const drawnWidth = canvas.width * drawRatio;
           const drawnHeight = canvas.height * drawRatio;
@@ -293,37 +304,31 @@ export async function generateGifFromPdf(
           const offsetY = (gifHeight - drawnHeight) / 2;
 
           sizedContext.drawImage(canvas, offsetX, offsetY, drawnWidth, drawnHeight);
-          frameToAdd = sizedCanvas; // Use the resized canvas
+          frameToAdd = sizedCanvas; 
         }
       }
 
       console.log(`Adding frame ${i} to GIF instance...`);
-      gifInstance.addFrame(frameToAdd, { delay: frameDelay, copy: true }); // copy: true is important!
+      gifInstance.addFrame(frameToAdd, { delay: frameDelay, copy: true }); 
       console.log(`Frame ${i} added.`);
-       onProgress?.(pageProgressEnd); // Page complete
+      onProgress?.(pageProgressEnd); 
 
-       // Cleanup page resources (optional, but good practice)
-        page.cleanup();
+      page.cleanup();
     }
   } catch (renderError) {
        console.error("Error during page rendering loop:", renderError);
-       // Try to destroy PDF doc even if rendering failed
         if (pdfDoc) {
             await pdfDoc.destroy().catch(e => console.error("Error destroying PDF doc after render error:", e));
         }
        throw new Error(`Failed during PDF page processing: ${renderError instanceof Error ? renderError.message : String(renderError)}`);
   }
 
-
-  // Cleanup PDF document
   console.log("Cleaning up PDF document resources...");
-  await pdfDoc.destroy();
+  if (pdfDoc && typeof pdfDoc.destroy === 'function') await pdfDoc.destroy();
   console.log("PDF document cleanup complete.");
-  onProgress?.(0.95); // Nearing completion
+  onProgress?.(0.95); 
 
-  // --- GIF Rendering ---
   console.log("Starting final GIF rendering...");
-  // Return a promise that resolves with the GIF Blob
   return new Promise((resolve, reject) => {
     gifInstance.on('finished', (blob: Blob) => {
         console.log("GIF encoder finished.");
@@ -333,24 +338,22 @@ export async function generateGifFromPdf(
         return;
       }
       console.log(`GIF generated successfully. Type: ${blob.type}, Size: ${(blob.size / 1024 / 1024).toFixed(2)} MB`);
-      onProgress?.(1.0); // Complete
+      onProgress?.(1.0); 
       resolve(blob);
     });
 
-    // @ts-ignore - gif.js typings might be incomplete for 'error' event
+    // @ts-ignore 
      gifInstance.on('error', (err: any) => {
        console.error("gif.js encountered an error during final rendering:", err);
-       reject(new Error(`GIF final rendering failed: ${err?.message || err}`));
+       reject(new Error(`GIF final rendering failed: ${err?.message || String(err)}`));
      });
 
-    // Optional: Progress tracking during final rendering stage
     gifInstance.on('progress', (p: number) => {
-       const finalProgress = 0.95 + p * 0.05; // Map gif.js progress (0-1) to the last 5%
+       const finalProgress = 0.95 + p * 0.05; 
        console.log(`GIF final rendering progress: ${Math.round(p * 100)}%`);
        onProgress?.(finalProgress);
     });
 
-    // Start the rendering process
     gifInstance.render();
      console.log("gifInstance.render() called.");
   });

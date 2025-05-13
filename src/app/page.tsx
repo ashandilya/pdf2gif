@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { generateGifFromPdf, GifConfig } from '@/services/gif-generator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,13 +11,15 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Icons } from "@/components/icons";
 import { SelectItem, SelectTrigger, SelectValue, SelectContent, SelectGroup, Select, SelectLabel } from "@/components/ui/select";
-// Removed next/image import as we are using a standard img tag now
+
+
+const MAX_PDF_SIZE_BYTES = 8 * 1024 * 1024; // 8MB
 
 function GifGenerator() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [gifUrl, setGifUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [progress, setProgress] = useState<number>(0); // Add progress state
+  const [progress, setProgress] = useState<number>(0);
   const [gifConfig, setGifConfig] = useState<GifConfig>({
     frameRate: 10,
     resolution: '500xauto',
@@ -31,13 +33,22 @@ function GifGenerator() {
     setIsClient(true);
   }, []);
 
-   // Clean up object URL when component unmounts or gifUrl changes
+  const revokeGifUrl = useCallback(() => {
+    if (gifUrl) {
+      URL.revokeObjectURL(gifUrl);
+      console.log("Revoked object URL:", gifUrl);
+      setGifUrl(null);
+    }
+  }, [gifUrl]);
+
   useEffect(() => {
+    // This effect handles cleanup when the component unmounts
+    // or when gifUrl itself changes *before* a new one is set.
     const currentUrl = gifUrl;
     return () => {
       if (currentUrl) {
         URL.revokeObjectURL(currentUrl);
-         console.log("Revoked object URL:", currentUrl);
+        console.log("Revoked object URL on cleanup:", currentUrl);
       }
     };
   }, [gifUrl]);
@@ -46,22 +57,35 @@ function GifGenerator() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
-      if (file.type === 'application/pdf') {
-        setPdfFile(file);
-        if (gifUrl) {
-          URL.revokeObjectURL(gifUrl); // Revoke previous URL if exists
-        }
-        setGifUrl(null); // Reset GIF preview when new file is selected
-        setProgress(0); // Reset progress
-      } else {
+      if (file.type !== 'application/pdf') {
         toast({
           title: "Invalid file type",
           description: "Please select a PDF file.",
           variant: "destructive",
         });
-        event.target.value = ""; // Clear the input
+        event.target.value = ""; 
         setPdfFile(null);
+        revokeGifUrl();
+        setProgress(0);
+        return;
       }
+
+      if (file.size > MAX_PDF_SIZE_BYTES) {
+        toast({
+          title: "File too large",
+          description: `Please select a PDF file smaller than ${MAX_PDF_SIZE_BYTES / 1024 / 1024}MB.`,
+          variant: "destructive",
+        });
+        event.target.value = "";
+        setPdfFile(null);
+        revokeGifUrl();
+        setProgress(0);
+        return;
+      }
+      
+      setPdfFile(file);
+      revokeGifUrl(); // Revoke previous URL if exists
+      setProgress(0); // Reset progress
     }
   };
 
@@ -76,23 +100,19 @@ function GifGenerator() {
     }
 
     setLoading(true);
-    setProgress(0); // Reset progress on new generation
-    if (gifUrl) {
-        URL.revokeObjectURL(gifUrl); // Revoke previous URL
-    }
-    setGifUrl(null);
+    setProgress(0); 
+    revokeGifUrl(); // Revoke previous URL before generating a new one
     console.log("Starting GIF generation with config:", gifConfig);
 
     try {
-      // Pass a callback to update progress
       const blob = await generateGifFromPdf(pdfFile, gifConfig, (p) => {
-         setProgress(p); // Update progress state
+         setProgress(p); 
       });
       console.log("Generated GIF blob:", blob);
       if (blob && blob.size > 0) {
-        const url = URL.createObjectURL(blob);
-        console.log("Created object URL:", url);
-        setGifUrl(url);
+        const newGifUrl = URL.createObjectURL(blob);
+        console.log("Created object URL:", newGifUrl);
+        setGifUrl(newGifUrl); // Set the new URL
          toast({
             title: "GIF generated successfully!",
             description: "You can now preview and download the GIF.",
@@ -110,8 +130,8 @@ function GifGenerator() {
         description: `An error occurred: ${error instanceof Error ? error.message : String(error)}`,
         variant: "destructive",
       });
-       setGifUrl(null); // Ensure no broken preview is shown
-       setProgress(0); // Reset progress on error
+       setGifUrl(null); 
+       setProgress(0); 
     } finally {
       setLoading(false);
     }
@@ -134,7 +154,6 @@ function GifGenerator() {
     link.click();
     document.body.removeChild(link);
      console.log("Download triggered for:", gifUrl);
-    // No need to revoke here, could revoke later or let the effect handle it
   };
 
   const handleFrameRateChange = (value: number[]) => {
@@ -151,7 +170,6 @@ function GifGenerator() {
   }
 
   if (!isClient) {
-    // Optional: Render a placeholder or spinner during server render / hydration phase
     return (
        <div className="flex items-center justify-center min-h-screen">
          <Icons.loader className="h-12 w-12 animate-spin text-primary" />
@@ -171,7 +189,7 @@ function GifGenerator() {
           <Card className="shadow-lg rounded-xl">
             <CardHeader>
               <CardTitle className="text-2xl">1. Upload PDF</CardTitle>
-              <CardDescription>Select a PDF file from your computer.</CardDescription>
+              <CardDescription>Select a PDF file (max 8MB) from your computer.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex flex-col items-center space-y-4">
@@ -274,14 +292,12 @@ function GifGenerator() {
               <div className="flex flex-col items-center text-muted-foreground">
                 <Icons.loader className="h-12 w-12 animate-spin mb-4" />
                 <p>Processing PDF and generating GIF...</p>
-                <p className="text-sm">Progress: {Math.round(progress * 100)}%</p> {/* Show progress */}
+                <p className="text-sm">Progress: {Math.round(progress * 100)}%</p> 
                 <p className="text-sm">This may take a few moments.</p>
               </div>
             )}
             {!loading && gifUrl && (
               <div className="w-full max-w-md" data-ai-hint="animation motion">
-                 {/* Use standard img tag for preview */}
-                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                     src={gifUrl}
                     alt="Generated GIF Preview"
@@ -290,7 +306,7 @@ function GifGenerator() {
                     onError={(e) => {
                          console.error("Error loading GIF preview:", e);
                          toast({ title: "Error loading preview", description: "The generated GIF might be corrupted or the URL is invalid.", variant: "destructive" });
-                         setGifUrl(null); // Clear broken URL
+                         revokeGifUrl(); 
                     }}
                  />
               </div>
@@ -325,25 +341,7 @@ function GifGenerator() {
   );
 }
 
-// Wrap GifGenerator in a component that ensures it only renders client-side
-// This helps prevent hydration mismatches related to client-only logic
-// Although the `isClient` state helps, this provides an extra layer
-// const ClientOnlyGifGenerator = () => {
-//   const [hasMounted, setHasMounted] = useState(false);
-//   useEffect(() => {
-//     setHasMounted(true);
-//   }, []);
-
-//   if (!hasMounted) {
-//     // Optional: Render a static placeholder or loading spinner on the server/initial client render
-//     return <div className="flex items-center justify-center min-h-screen"><Icons.loader className="h-12 w-12 animate-spin text-primary" /></div>;
-//   }
-
-//   return <GifGenerator />;
-// }
-
 
 export default function Home() {
-   // Render GifGenerator directly as it handles client-side rendering internally now
   return <GifGenerator />;
 }

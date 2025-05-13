@@ -211,15 +211,15 @@ function GifGenerator() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8 w-full max-w-4xl">
         <div className="space-y-4 sm:space-y-6">
-          <Card className="shadow-lg rounded-xl w-full max-w-full min-h-[180px] max-h-[220px] flex flex-col justify-between">
-            <CardHeader>
-              <CardTitle className="text-xl sm:text-2xl">1. Upload PDF</CardTitle>
-              <CardDescription className="text-xs sm:text-base">Select a PDF file (max {MAX_PDF_SIZE_BYTES / 1024 / 1024}MB) from your computer.</CardDescription>
+          <Card className="shadow-lg rounded-xl w-full max-w-full min-h-[180px] max-h-[220px] flex flex-col justify-between overflow-hidden box-border">
+            <CardHeader className="overflow-hidden box-border">
+              <CardTitle className="text-xl sm:text-2xl truncate w-full max-w-full">1. Upload PDF</CardTitle>
+              <CardDescription className="text-xs sm:text-base truncate w-full max-w-full">Select a PDF file (max {MAX_PDF_SIZE_BYTES / 1024 / 1024}MB) from your computer.</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="flex flex-col items-center space-y-4">
-                <Label htmlFor="pdf-upload" className="w-full">
-                  <div className="flex flex-col items-center justify-center w-full h-24 sm:h-32 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors">
+            <CardContent className="overflow-hidden box-border w-full max-w-full">
+              <div className="flex flex-col items-center space-y-4 w-full max-w-full overflow-hidden box-border">
+                <Label htmlFor="pdf-upload" className="w-full max-w-full overflow-hidden box-border">
+                  <div className="flex flex-col items-center justify-center w-full h-24 sm:h-32 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors overflow-hidden box-border">
                     <Icons.fileUp className="w-8 h-8 sm:w-10 sm:h-10 text-muted-foreground mb-2" />
                     <span className="text-xs sm:text-sm text-muted-foreground truncate w-full max-w-full block text-center">
                       {pdfFile ? pdfFile.name : "Click or drag PDF here"}
@@ -231,7 +231,7 @@ function GifGenerator() {
               </div>
             </CardContent>
             {pdfFile && (
-               <CardFooter className="text-xs text-muted-foreground truncate w-full max-w-full block">
+               <CardFooter className="text-xs text-muted-foreground truncate w-full max-w-full block overflow-hidden box-border">
                  Selected: <span className="truncate inline-block align-bottom max-w-[80vw] md:max-w-[200px] lg:max-w-[300px]">{pdfFile.name}</span> ({(pdfFile.size / 1024 / 1024).toFixed(2)} MB)
                </CardFooter>
             )}

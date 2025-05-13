@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { generateGifFromPdf, GifConfig } from '@/services/gif-generator';
+import { generateGifFromPdf, GifConfig as OriginalGifConfig } from '@/services/gif-generator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +22,11 @@ const DropboxIcon = () => (
 const GoogleDriveIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.5 3L1 14L4.5 20.5H19.5L23 14L16.5 3H7.5ZM7.5 5H16.5L21.5 14L18.5 19H5.5L2.5 14L7.5 5ZM12 7.5L8.5 14H15.5L12 7.5Z" fill="white"/></svg>
 );
+
+// Extend GifConfig to include pageRange
+interface GifConfig extends OriginalGifConfig {
+  pageRange?: string;
+}
 
 function GifGenerator() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -220,9 +225,9 @@ function GifGenerator() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8 w-full max-w-4xl min-h-[560px]">
         <div className="flex flex-col space-y-4 sm:space-y-6 h-full min-h-[560px]">
-          <Card className="shadow-2xl rounded-xl w-full max-w-full flex flex-col justify-start overflow-hidden box-border bg-white dark:bg-black min-h-[120px] max-h-[120px]">
-            <Label htmlFor="pdf-upload" className="w-full cursor-pointer">
-              <div className="flex items-center justify-between w-full px-6 py-6">
+          <Card className="shadow-2xl rounded-xl w-full max-w-full flex flex-col justify-center overflow-hidden box-border bg-red-600 min-h-[160px] max-h-[160px]">
+            <Label htmlFor="pdf-upload" className="w-full cursor-pointer h-full flex flex-col justify-center">
+              <div className="flex items-center justify-between w-full px-6 py-6 h-full">
                 <span className="text-white font-semibold text-lg sm:text-xl">Choose Files</span>
                 <div className="flex items-center space-x-6">
                   <FolderSearch className="w-7 h-7 text-white opacity-90" />
@@ -231,12 +236,12 @@ function GifGenerator() {
                 </div>
               </div>
               <Input id="pdf-upload" type="file" accept="application/pdf" className="hidden" onChange={handleFileChange} />
+              <div className="w-full px-6 pb-2 pt-2">
+                <p className="text-xs text-white/80 flex items-center">
+                  <span className="mr-1">🔒</span> Drop files here. 50 MB maximum file size
+                </p>
+              </div>
             </Label>
-            <div className="bg-red-700/80 w-full px-6 pb-4 pt-2 rounded-b-xl">
-              <p className="text-xs text-white/80 flex items-center">
-                <span className="mr-1">🔒</span> Drop files here. 50 MB maximum file size
-              </p>
-            </div>
           </Card>
           <Card className="shadow-2xl rounded-xl w-full max-w-full min-h-[420px] max-h-[420px] flex flex-col justify-center bg-white dark:bg-black">
             <CardHeader>

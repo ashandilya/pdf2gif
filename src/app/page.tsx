@@ -11,9 +11,17 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Icons } from "@/components/icons";
 import { SelectItem, SelectTrigger, SelectValue, SelectContent, SelectGroup, Select, SelectLabel } from "@/components/ui/select";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun, FolderSearch } from "lucide-react";
 
 const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+
+// SVGs for Dropbox and Google Drive
+const DropboxIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.5 3L12 6.5L7 9.5L1.5 6L6.5 3ZM12 6.5L17.5 3L22.5 6L17 9.5L12 6.5ZM1.5 13L7 16.5L12 13L6.5 9.5L1.5 13ZM12 13L17 16.5L22.5 13L17.5 9.5L12 13ZM7 18.5L12 21.5L17 18.5L12 15.5L7 18.5Z" fill="white"/></svg>
+);
+const GoogleDriveIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.5 3L1 14L4.5 20.5H19.5L23 14L16.5 3H7.5ZM7.5 5H16.5L21.5 14L18.5 19H5.5L2.5 14L7.5 5ZM12 7.5L8.5 14H15.5L12 7.5Z" fill="white"/></svg>
+);
 
 function GifGenerator() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -211,30 +219,23 @@ function GifGenerator() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8 w-full max-w-4xl">
         <div className="space-y-4 sm:space-y-6">
-          <Card className="shadow-lg rounded-xl w-full max-w-full min-h-[180px] max-h-[220px] flex flex-col justify-between overflow-hidden box-border">
-            <CardHeader className="overflow-hidden box-border">
-              <CardTitle className="text-xl sm:text-2xl truncate w-full max-w-full">1. Upload PDF</CardTitle>
-              <CardDescription className="text-xs sm:text-base truncate w-full max-w-full">Select a PDF file (max {MAX_PDF_SIZE_BYTES / 1024 / 1024}MB) from your computer.</CardDescription>
-            </CardHeader>
-            <CardContent className="overflow-hidden box-border w-full max-w-full">
-              <div className="flex flex-col items-center space-y-4 w-full max-w-full overflow-hidden box-border">
-                <Label htmlFor="pdf-upload" className="w-full max-w-full overflow-hidden box-border">
-                  <div className="flex flex-col items-center justify-center w-full h-24 sm:h-32 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors overflow-hidden box-border">
-                    <Icons.fileUp className="w-8 h-8 sm:w-10 sm:h-10 text-muted-foreground mb-2" />
-                    <span className="text-xs sm:text-sm text-muted-foreground truncate w-full max-w-full block text-center">
-                      {pdfFile ? pdfFile.name : "Click or drag PDF here"}
-                    </span>
-                  </div>
-                </Label>
-                <Input id="pdf-upload" type="file" accept="application/pdf" className="hidden"
-                  onChange={handleFileChange} />
+          <Card className="shadow-lg rounded-xl w-full max-w-full flex flex-col justify-start overflow-hidden box-border bg-red-600">
+            <Label htmlFor="pdf-upload" className="w-full cursor-pointer">
+              <div className="flex items-center justify-between w-full px-6 py-6">
+                <span className="text-white font-semibold text-lg sm:text-xl">Choose Files</span>
+                <div className="flex items-center space-x-6">
+                  <FolderSearch className="w-7 h-7 text-white opacity-90" />
+                  <span className="w-7 h-7">{DropboxIcon()}</span>
+                  <span className="w-7 h-7">{GoogleDriveIcon()}</span>
+                </div>
               </div>
-            </CardContent>
-            {pdfFile && (
-               <CardFooter className="text-xs text-muted-foreground truncate w-full max-w-full block overflow-hidden box-border">
-                 Selected: <span className="truncate inline-block align-bottom max-w-[80vw] md:max-w-[200px] lg:max-w-[300px]">{pdfFile.name}</span> ({(pdfFile.size / 1024 / 1024).toFixed(2)} MB)
-               </CardFooter>
-            )}
+              <Input id="pdf-upload" type="file" accept="application/pdf" className="hidden" onChange={handleFileChange} />
+            </Label>
+            <div className="bg-red-700/80 w-full px-6 pb-4 pt-2 rounded-b-xl">
+              <p className="text-xs text-white/80 flex items-center">
+                <span className="mr-1">🔒</span> Drop files here. 100 MB maximum file size or <a href="#" className="underline text-white/90 hover:text-white">Sign Up</a>
+              </p>
+            </div>
           </Card>
 
           <Card className="shadow-lg rounded-xl w-full max-w-full">

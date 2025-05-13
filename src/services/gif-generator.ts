@@ -27,24 +27,24 @@ function ensureLibrariesLoaded(): Promise<void> {
             console.log("PDF.js and gif.js libraries ready.");
             resolve();
         } else {
-            console.log(`Library status: PDF worker ready: ${pdfWorkerPromiseResolved}, gif.js ready: ${gifLibraryPromiseResolved}`);
+            // console.log(`Library status: PDF worker ready: ${pdfWorkerPromiseResolved}, gif.js ready: ${gifLibraryPromiseResolved}`);
         }
     }
 
     // Configure PDF.js Worker (only once)
     if (!pdfjsWorkerSrcConfigured) {
       try {
-        const workerVersion = '4.3.136'; // Match package.json version for pdfjs-dist
-        const workerUrl = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${workerVersion}/build/pdf.worker.min.js`;
-        (pdfjsLib.GlobalWorkerOptions as PDFWorkerParameters).workerSrc = workerUrl;
+        // Always point to the local pdf.worker.js.
+        // The user is responsible for ensuring this file is not a placeholder.
+        const workerScriptPath = '/pdf.worker.js';
+        (pdfjsLib.GlobalWorkerOptions as PDFWorkerParameters).workerSrc = workerScriptPath;
         pdfjsWorkerSrcConfigured = true;
-        pdfWorkerPromiseResolved = true;
-        console.log(`PDF.js worker source configured with CDN: ${workerUrl}`);
+        pdfWorkerPromiseResolved = true; // Assume configured, PDF.js will handle if worker is bad
+        console.log(`PDF.js worker source configured to use local: ${workerScriptPath}. IMPORTANT: Ensure this file is the actual pdf.worker.js and not a placeholder.`);
       } catch (e) {
-        console.error("Error setting pdfjs workerSrc from CDN:", e);
-        // Explicitly set to false on error, rejection will be handled by Promise.all or similar
-        pdfWorkerPromiseResolved = false; 
-        return reject(new Error("Failed to configure PDF.js worker from CDN."));
+        console.error("Error setting pdfjs workerSrc to local path:", e);
+        pdfWorkerPromiseResolved = false;
+        return reject(new Error(`Failed to configure PDF.js worker path: ${e instanceof Error ? e.message : String(e)}`));
       }
       checkCompletion();
     } else {
@@ -55,17 +55,18 @@ function ensureLibrariesLoaded(): Promise<void> {
     // Load gif.js (only once)
     if (!gifjsLoaded && !GIF) {
         console.log("Attempting to load gif.js...");
-        import('gif.js/dist/gif.js') 
+        import('gif.js/dist/gif.js') // Assumes gif.js is installed and provides a /dist/gif.js
             .then(module => {
                 if (module && module.default) {
                     GIF = module.default;
                 } else {
                     // Fallback if default export isn't found, try using the module directly
+                    // This might be necessary depending on how gif.js structures its UMD/ESM module
                     GIF = module; 
                 }
 
                 if (!GIF) {
-                    console.error("gif.js module loaded but GIF constructor is still undefined.");
+                    console.error("gif.js module loaded but GIF constructor is still undefined. Module structure might be unexpected.");
                     return reject(new Error("gif.js module loaded but is empty or invalid."));
                 }
                 gifjsLoaded = true;
@@ -74,11 +75,12 @@ function ensureLibrariesLoaded(): Promise<void> {
                 checkCompletion();
             }).catch(err => {
                 console.error("Failed to dynamically import gif.js:", err);
-                return reject(new Error("Failed to load GIF library (gif.js)."));
+                return reject(new Error("Failed to load GIF library (gif.js). Ensure it's correctly installed or accessible."));
             });
-    } else if (gifjsLoaded) {
+    } else if (gifjsLoaded || GIF) { // Check GIF as well in case import was synchronous in some env
          gifLibraryPromiseResolved = true; // Already loaded
-         console.log("gif.js already loaded.");
+         if (!GIF) console.warn("gifjsLoaded is true, but GIF constructor is null. This might indicate an issue.")
+         // console.log("gif.js already available.");
          checkCompletion();
     }
   });
@@ -139,6 +141,10 @@ export async function generateGifFromPdf(
     
     pdfDoc = await Promise.race([loadPdfPromise, timeoutPromise]);
     
+    if (!pdfDoc || !pdfDoc.numPages) {
+      // Handle cases where pdfDoc might be null or numPages is 0/undefined after promise resolution.
+      throw new Error("PDF document loaded but is invalid or has no pages.");
+    }
     console.log(`PDF document loaded: ${pdfDoc.numPages} pages.`);
     onProgress?.(0.1); // Indicate progress after PDF load
   } catch (error) {
@@ -152,7 +158,7 @@ export async function generateGifFromPdf(
       } else if (error.message.includes('PasswordException')) {
         friendlyMessage = 'PDF file is password protected.';
       } else if (error.message.includes('workerSrc') || error.message.includes('Worker was not found') || error.message.includes('worker')) {
-        friendlyMessage = 'PDF worker script failed to load or is misconfigured. Check CDN link or network connectivity.';
+        friendlyMessage = 'PDF worker script failed to load, is misconfigured, or is a placeholder. Ensure public/pdf.worker.js is the correct file.';
       } else if (error.message.includes("Unexpected server response (0) while retrieving PDF")) {
          friendlyMessage = 'Could not retrieve PDF data (Network error or invalid source).';
       } else {
@@ -185,7 +191,7 @@ export async function generateGifFromPdf(
   if (config.resolution !== 'original' && config.resolution.includes('xauto')) {
     targetWidth = parseInt(config.resolution.split('xauto')[0], 10);
     if (isNaN(targetWidth) || targetWidth <= 0) {
-      console.warn(`Invalid target width in resolution: ${config.resolution}. Falling back to original.`);
+      console.warn(`Invalid target width in resolution: ${config.resolution}. Falling back to original page width.`);
       targetWidth = undefined;
     } else {
         console.log(`Target width set to ${targetWidth}px.`);
@@ -193,21 +199,24 @@ export async function generateGifFromPdf(
   } else if (config.resolution === 'original') {
       console.log("Using original PDF page size.");
   } else {
-     console.warn(`Malformed resolution: ${config.resolution}. Falling back to 500px width.`);
-     targetWidth = 500;
+     console.warn(`Malformed resolution: ${config.resolution}. Falling back to 500px width as a default if original also fails.`);
+     targetWidth = 500; // Default fallback if 'original' is also not explicitly handled or preferred.
   }
 
   console.log("Initializing GIF encoder...");
   const gifInstance = new GIF({
+    // Consider making workers configurable or more robustly determined.
+    // Using Math.max(1, ...) ensures at least one worker.
     workers: Math.max(1, navigator.hardwareConcurrency ? Math.floor(navigator.hardwareConcurrency / 2) : 2), 
-    quality: 10, 
-    workerScript: '/gif.worker.js', // gif.js worker is still loaded locally
-    repeat: config.looping ? 0 : -1, 
-    background: '#FFFFFF',
+    quality: 10, // Lower quality (e.g., 20-30) might be faster and smaller, higher (e.g., 1-10) better quality.
+    workerScript: '/gif.worker.js', // gif.js worker is still loaded locally from public
+    repeat: config.looping ? 0 : -1, // 0 for infinite loop, -1 for no loop.
+    background: '#FFFFFF', // Default background color for transparency.
+    // width and height will be set after first page is processed if not 'original'
   });
   console.log("GIF encoder initialized.");
 
-  const frameDelay = Math.max(20, Math.round(1000 / config.frameRate)); 
+  const frameDelay = Math.max(20, Math.round(1000 / config.frameRate)); // Ensure delay is reasonable (gif.js might have min value)
   console.log(`Frame rate: ${config.frameRate} FPS, Delay: ${frameDelay}ms`);
 
   try {
@@ -217,7 +226,7 @@ export async function generateGifFromPdf(
       onProgress?.(pageProgressStart);
 
       console.log(`Processing page ${i} of ${numPages}...`);
-      const page = await pdfDoc.getPage(i);
+      const page: PDFPageProxy = await pdfDoc.getPage(i);
       const originalViewport = page.getViewport({ scale: 1.0 });
       console.log(`Page ${i} original dimensions: ${originalViewport.width}x${originalViewport.height}`);
 
@@ -225,20 +234,20 @@ export async function generateGifFromPdf(
       let renderWidth = originalViewport.width;
       let renderHeight = originalViewport.height;
 
-      if (targetWidth) {
+      if (targetWidth) { // If a specific width is targeted
         scale = targetWidth / originalViewport.width;
         renderWidth = targetWidth;
         renderHeight = originalViewport.height * scale;
       }
-
+      // Ensure dimensions are integers and at least 1px
       renderWidth = Math.max(1, Math.floor(renderWidth));
       renderHeight = Math.max(1, Math.floor(renderHeight));
 
-      if (i === 1) {
+      if (i === 1) { // Set GIF dimensions based on the first page's (potentially scaled) size
         gifWidth = renderWidth;
         gifHeight = renderHeight;
         console.log(`Setting GIF dimensions to: ${gifWidth}x${gifHeight}`);
-        // @ts-ignore 
+        // @ts-ignore - gif.js typings might not expose options directly
         gifInstance.options.width = gifWidth;
         // @ts-ignore
         gifInstance.options.height = gifHeight;
@@ -252,54 +261,61 @@ export async function generateGifFromPdf(
       if (!context) {
         throw new Error(`Could not get 2D rendering context for page ${i}.`);
       }
-      canvas.width = Math.max(1, Math.floor(viewport.width));
-      canvas.height = Math.max(1, Math.floor(viewport.height));
+      canvas.width = Math.max(1, Math.floor(viewport.width)); // Use viewport width for canvas
+      canvas.height = Math.max(1, Math.floor(viewport.height)); // Use viewport height for canvas
+
 
       const renderContext: PDFRenderParams = {
         canvasContext: context,
         viewport: viewport,
       };
 
-      console.log(`Rendering page ${i} to canvas...`);
+      console.log(`Rendering page ${i} to canvas (${canvas.width}x${canvas.height})...`);
       await page.render(renderContext).promise;
       onProgress?.(pageProgressStart + (pageProgressEnd - pageProgressStart) * 0.7); 
       console.log(`Page ${i} rendered.`);
 
       let frameToAdd: CanvasImageSource = canvas;
 
+      // If canvas size doesn't match GIF dimensions (e.g. subsequent pages are different, or first page scaling was off)
+      // Create a new canvas of the target GIF size and draw the current page's canvas onto it.
       if (gifWidth && gifHeight && (canvas.width !== gifWidth || canvas.height !== gifHeight)) {
-        console.warn(`Frame ${i} size (${canvas.width}x${canvas.height}) differs from GIF size (${gifWidth}x${gifHeight}). Resizing/Fitting.`);
+        console.warn(`Frame ${i} canvas size (${canvas.width}x${canvas.height}) differs from target GIF size (${gifWidth}x${gifHeight}). Fitting frame.`);
         const sizedCanvas = document.createElement('canvas');
         sizedCanvas.width = gifWidth;
         sizedCanvas.height = gifHeight;
         const sizedContext = sizedCanvas.getContext('2d');
         if (!sizedContext) {
-           console.error(`Could not get 2D context for resized canvas on frame ${i}. Skipping resize.`);
+           console.error(`Could not get 2D context for resized canvas on frame ${i}. Using original frame.`);
         } else {
-          sizedContext.fillStyle = '#FFFFFF'; 
+          sizedContext.fillStyle = '#FFFFFF'; // Fill with background color
           sizedContext.fillRect(0, 0, gifWidth, gifHeight);
 
+          // Calculate aspect ratio to fit the source canvas into the target GIF dimensions
           const drawRatio = Math.min(gifWidth / canvas.width, gifHeight / canvas.height);
           const drawnWidth = canvas.width * drawRatio;
           const drawnHeight = canvas.height * drawRatio;
+          // Center the drawn image
           const offsetX = (gifWidth - drawnWidth) / 2;
           const offsetY = (gifHeight - drawnHeight) / 2;
 
           sizedContext.drawImage(canvas, offsetX, offsetY, drawnWidth, drawnHeight);
-          frameToAdd = sizedCanvas; 
+          frameToAdd = sizedCanvas; // Use this consistently sized canvas for the GIF frame
         }
       }
 
       console.log(`Adding frame ${i} to GIF instance...`);
-      gifInstance.addFrame(frameToAdd, { delay: frameDelay, copy: true }); 
+      // @ts-ignore - gif.js addFrame might not have perfect typings for options
+      gifInstance.addFrame(frameToAdd, { delay: frameDelay, copy: true }); // copy: true is important if canvas is reused/modified
       console.log(`Frame ${i} added.`);
       onProgress?.(pageProgressEnd); 
 
-      page.cleanup();
+      page.cleanup(); // Important to free up resources
     }
   } catch (renderError) {
        console.error("Error during page rendering loop:", renderError);
         if (pdfDoc) {
+            // Ensure cleanup happens even if loop fails
             await pdfDoc.destroy().catch(e => console.error("Error destroying PDF doc after render error:", e));
         }
        throw new Error(`Failed during PDF page processing: ${renderError instanceof Error ? renderError.message : String(renderError)}`);
@@ -316,7 +332,7 @@ export async function generateGifFromPdf(
         console.log("GIF encoder finished.");
       if (!blob || blob.size === 0) {
         console.error("GIF generation finished but resulted in an empty or invalid blob.", blob);
-        reject(new Error('GIF generation failed: Output is empty. Check browser console for detailed errors.'));
+        reject(new Error('GIF generation failed: Output is empty. This could be due to issues with gif.js worker or encoding. Check browser console for detailed errors.'));
         return;
       }
       console.log(`GIF generated successfully. Type: ${blob.type}, Size: ${(blob.size / 1024 / 1024).toFixed(2)} MB`);
@@ -324,14 +340,15 @@ export async function generateGifFromPdf(
       resolve(blob);
     });
 
-    // @ts-ignore 
+    // @ts-ignore - gif.js error event might not be typed
      gifInstance.on('error', (err: any) => {
        console.error("gif.js encountered an error during final rendering:", err);
        reject(new Error(`GIF final rendering failed: ${err?.message || String(err)}`));
      });
 
     gifInstance.on('progress', (p: number) => {
-       const finalProgress = 0.95 + p * 0.05; 
+       // This progress is for the final GIF rendering stage by gif.js
+       const finalProgress = 0.95 + p * 0.05; // Scale gif.js progress (0-1) to the remaining 5%
        console.log(`GIF final rendering progress: ${Math.round(p * 100)}%`);
        onProgress?.(finalProgress);
     });
@@ -340,3 +357,5 @@ export async function generateGifFromPdf(
      console.log("gifInstance.render() called.");
   });
 }
+
+    

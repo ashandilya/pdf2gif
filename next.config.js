@@ -1,9 +1,7 @@
+/** @type {import('next').NextConfig} */
+const path = require('path');
 
-import type {NextConfig} from 'next';
-import path from 'path'; // Import path module
-
-const nextConfig: NextConfig = {
-  /* config options here */
+const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -29,10 +27,9 @@ const nextConfig: NextConfig = {
     // Use with caution, might hide other issues.
     // config.module.noParse = /pdfjs-dist\/build\/pdf\.js$/;
 
-
     // Important: return the modified config
     return config;
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig; 
